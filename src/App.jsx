@@ -2984,6 +2984,7 @@ function SettingsPanel({ r, store }) {
   };
 
   // 🔗 COPIAR LINK DEL MENÚ
+<<<<<<< HEAD
   // 🔗 COPIAR LINK DEL MENÚ (solo vista del cliente)
   const handleCopyMenuLink = () => {
     try {
@@ -2999,6 +3000,15 @@ function SettingsPanel({ r, store }) {
         navigator.clipboard.writeText(url);
         alert(
           "Link del menú (vista del cliente) copiado. Pégalo en WhatsApp, redes sociales, etc."
+=======
+  const handleCopyMenuLink = () => {
+    try {
+      const url = window.location.href;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url);
+        alert(
+          "Link del menú copiado. Pégalo en WhatsApp, redes sociales, etc."
+>>>>>>> 72214db204f44cb80a07559385bad53ec069f1d8
         );
       } else {
         alert(
@@ -3007,6 +3017,7 @@ function SettingsPanel({ r, store }) {
       }
     } catch (e) {
       console.warn("No se pudo copiar el link:", e);
+<<<<<<< HEAD
     }
   };
 
@@ -3018,6 +3029,18 @@ function SettingsPanel({ r, store }) {
       const base = window.location.origin + window.location.pathname;
       const url = `${base}?view=cliente`;
 
+=======
+      alert(
+        "No se pudo copiar automáticamente. Copia el link desde la barra del navegador."
+      );
+    }
+  };
+
+  // 📱 ABRIR QR DEMO CON ESE LINK
+  const handleOpenQrDemo = () => {
+    try {
+      const url = window.location.href;
+>>>>>>> 72214db204f44cb80a07559385bad53ec069f1d8
       const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
         url
       )}`;
@@ -3027,7 +3050,10 @@ function SettingsPanel({ r, store }) {
     }
   };
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 72214db204f44cb80a07559385bad53ec069f1d8
   return (
     <Container>
       <Card style={{ marginBottom: 12 }}>
@@ -3385,6 +3411,7 @@ function SettingsPanel({ r, store }) {
 // APP PRINCIPAL
 // ===============================
 
+<<<<<<< HEAD
 // Vista del cliente protegida para que no truene la pantalla
 const PublicMenuSafe = ({
   r,
@@ -3436,6 +3463,14 @@ const [cart, setCart] = useState([]);
 const isPublicClient =
 typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("view") === "cliente";
+=======
+function App() {
+  const store = useStore();
+  const { restaurantes, activeRest, tab, setTab, setActiveRest, r } = store;
+
+  // Carrito actual del cliente (antes de ir a pagar)
+  const [cart, setCart] = useState([]);
+>>>>>>> 72214db204f44cb80a07559385bad53ec069f1d8
   // Platillo que se está personalizando en este momento
   const [customItem, setCustomItem] = useState(null);
   // Carrito que se manda al modal de pago
@@ -3505,6 +3540,7 @@ typeof window !== "undefined" &&
     setCheckoutCart(null);
   };
 
+<<<<<<< HEAD
   // 🟢 MODO SOLO CLIENTE (link con ?view=cliente)
   if (isPublicClient) {
     // Si aún no hay restaurante configurado
@@ -3561,6 +3597,8 @@ typeof window !== "undefined" &&
   }
 
 
+=======
+>>>>>>> 72214db204f44cb80a07559385bad53ec069f1d8
   // Vista inicial cuando aún no hay restaurante
   if (!r) {
     return (
@@ -3615,6 +3653,7 @@ typeof window !== "undefined" &&
 
       {tab === "menu" && <MenuEditor r={r} store={store} />}
 
+<<<<<<< HEAD
      {tab === "public" && (
   <Container>
     <Card>
@@ -3629,6 +3668,22 @@ typeof window !== "undefined" &&
     </Card>
   </Container>
 )}
+=======
+      {tab === "public" && (
+        <Container>
+          <Card>
+            <PublicMenu
+              r={r}
+              cart={cart}
+              onStartOrder={handleStartOrder}
+              onOpenCheckout={handleOpenCheckout}
+              onRemoveItem={handleRemoveCartItem}
+              onClearCart={handleClearCart}
+            />
+          </Card>
+        </Container>
+      )}
+>>>>>>> 72214db204f44cb80a07559385bad53ec069f1d8
 
       {tab === "settings" && <SettingsPanel r={r} store={store} />}
 
