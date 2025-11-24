@@ -3,6 +3,8 @@
 // ===============================
 
 import React, { useState, useEffect, useMemo } from "react";
+import { supabase } from "./supabaseClient";
+
 
 // ===============================
 // COLORES Y ANIMACIONES GLOBALES
@@ -244,53 +246,183 @@ const fileToDataUrl = (file, cb) => {
 // ===============================
 
 function useStore() {
-  // 1) Cargamos restaurantes desde localStorage si existen
-  const [restaurantes, setRestaurantes] = useState(() => {
-    if (typeof window !== "undefined") {
+  const [restaurantes, setRestaurantes] = useState([]);
+  const [activeRest, setActiveRest] = useState(null);
+  const [tab, setTab] = useState("menu");
+  const [loading, setLoading] = useState(true);
+
+  // ==============
+  // CARGA INICIAL
+  // ==============
+  useEffect(() => {
+    const load = async () => {
       try {
-        const saved = window.localStorage.getItem(STORAGE_RESTAURANTES);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed;
+        // 1) Intentar leer desde Supabase
+        const { data: restRows, error: restError } = await supabase
+          .from("restaurants")
+          .select("*");
+
+        if (restError) {
+          console.error("Error cargando restaurantes desde Supabase:", restError);
+          throw restError;
+        }
+
+        let result = [];
+
+        if (restRows && restRows.length > 0) {
+          // Obtener todos los IDs
+          const restIds = restRows.map((r) => r.id);
+
+          // 2) Leer los platillos de menu_items
+          let menuByRest = {};
+          try {
+            const { data: menuRows, error: menuError } = await supabase
+              .from("menu_items")
+              .select("*")
+              .in("restaurant_id", restIds);
+
+            if (menuError) {
+              console.error("Error cargando menú desde Supabase:", menuError);
+            } else {
+              (menuRows || []).forEach((m) => {
+                const rId = m.restaurant_id;
+                if (!menuByRest[rId]) menuByRest[rId] = [];
+                menuByRest[rId].push({
+                  id: m.id,
+                  nombre: m.nombre || "",
+                  categoria: m.categoria || "Comidas",
+                  precio: Number(m.precio) || 0,
+                  costo: Number(m.costo) || 0,
+                  stock: m.stock ?? 0,
+                  foto: m.foto || "",
+                  ingredientesBase: m.ingredientes_base || [],
+                  extras: m.extras || [],
+                  activo: m.activo !== false,
+                });
+              });
+            }
+          } catch (e) {
+            console.error("Error general cargando menú:", e);
           }
+
+          // 3) Mapear filas de restaurants al formato que usa la app
+          result = restRows.map((row) => ({
+            id: row.id,
+            nombre: row.nombre || "Sin nombre",
+            direccion: row.direccion || "",
+            whatsapp: row.whatsapp || "",
+            paymentLink: row.payment_link || "",
+            zonas: {
+              lat: row.zona_lat || 0,
+              lon: row.zona_lon || 0,
+              feePerKm: row.zona_fee_per_km || 0,
+            },
+            menu: menuByRest[row.id] || [],
+            categoryIcons: row.category_icons || DEFAULT_ICONS,
+            ventas: [], // de momento las ventas se quedan en front
+            logo: row.logo || "",
+            theme: {
+              primary: row.theme_primary || EMERALD,
+              secondary: row.theme_secondary || EMERALD_DARK,
+            },
+            testimonios: row.testimonios || [],
+            transferenciaBanco: row.transferencia_banco || "",
+            transferenciaCuenta: row.transferencia_cuenta || "",
+            transferenciaClabe: row.transferencia_clabe || "",
+            transferenciaTitular: row.transferencia_titular || "",
+            mensajeBienvenida: row.mensaje_bienvenida || "",
+          }));
+        }
+
+        // Si Supabase estaba vacío, usamos demo
+        if (!result.length) {
+          const demoId = "demo-rest";
+          result = [
+            {
+              id: demoId,
+              nombre: "Mi restaurante demo",
+              direccion: "Calle Sabor #123, Ciudad",
+              whatsapp: "",
+              paymentLink: "",
+              zonas: { lat: 0, lon: 0, feePerKm: 0 },
+              menu: [],
+              categoryIcons: DEFAULT_ICONS,
+              ventas: [],
+              logo: "",
+              theme: { primary: EMERALD, secondary: EMERALD_DARK },
+              testimonios: [],
+              transferenciaBanco: "",
+              transferenciaCuenta: "",
+              transferenciaClabe: "",
+              transferenciaTitular: "",
+              mensajeBienvenida: "",
+            },
+          ];
+        }
+
+        setRestaurantes(result);
+        setActiveRest(result[0]?.id || null);
+        // respaldo en localStorage
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(
+            STORAGE_RESTAURANTES,
+            JSON.stringify(result)
+          );
         }
       } catch (e) {
-        console.warn("No se pudo leer restaurantes guardados:", e);
+        console.warn("Fallo Supabase, usando localStorage / demo:", e);
+        // Fallback localStorage
+        if (typeof window !== "undefined") {
+          try {
+            const saved = window.localStorage.getItem(STORAGE_RESTAURANTES);
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setRestaurantes(parsed);
+                setActiveRest(parsed[0].id);
+                setLoading(false);
+                return;
+              }
+            }
+          } catch (err) {
+            console.warn("Error leyendo STORAGE_RESTAURANTES:", err);
+          }
+        }
+
+        // Si tampoco hay localStorage, usar demo
+        const demoId = "demo-rest";
+        const demo = [
+          {
+            id: demoId,
+            nombre: "Mi restaurante demo",
+            direccion: "Calle Sabor #123, Ciudad",
+            whatsapp: "",
+            paymentLink: "",
+            zonas: { lat: 0, lon: 0, feePerKm: 0 },
+            menu: [],
+            categoryIcons: DEFAULT_ICONS,
+            ventas: [],
+            logo: "",
+            theme: { primary: EMERALD, secondary: EMERALD_DARK },
+            testimonios: [],
+            transferenciaBanco: "",
+            transferenciaCuenta: "",
+            transferenciaClabe: "",
+            transferenciaTitular: "",
+            mensajeBienvenida: "",
+          },
+        ];
+        setRestaurantes(demo);
+        setActiveRest(demoId);
+      } finally {
+        setLoading(false);
       }
-    }
+    };
 
-    // Si no hay nada guardado, usamos el demo
-    const demoId = "demo-rest";
-    return [
-      {
-        id: demoId,
-        nombre: "Mi restaurante demo",
-        direccion: "Calle Sabor #123, Ciudad",
-        whatsapp: "",
-        paymentLink: "",
-        zonas: { lat: 0, lon: 0, feePerKm: 0 },
-        menu: [],
-        categoryIcons: DEFAULT_ICONS,
-        ventas: [],
-        logo: "",
-        theme: { primary: EMERALD, secondary: EMERALD_DARK },
-        testimonios: [],
-        transferenciaBanco: "",
-        transferenciaCuenta: "",
-        transferenciaClabe: "",
-        transferenciaTitular: "",
+    load();
+  }, []);
 
-      },
-    ];
-  });
-
-  const [activeRest, setActiveRest] = useState(
-    restaurantes.length ? restaurantes[0].id : null
-  );
-  const [tab, setTab] = useState("menu");
-
-  // 2) Guardar CADA CAMBIO en localStorage
+  // Guardar respaldo en localStorage ante cualquier cambio
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -303,7 +435,11 @@ function useStore() {
     }
   }, [restaurantes]);
 
-  const addRestaurant = () => {
+  // ======================
+  // ACCIONES SOBRE RESTAURANTES
+  // ======================
+
+  const addRestaurant = async () => {
     const id = crypto.randomUUID();
     const nuevo = {
       id,
@@ -318,46 +454,121 @@ function useStore() {
       logo: "",
       theme: { primary: EMERALD, secondary: EMERALD_DARK },
       testimonios: [],
-      logo: "",
-      theme: { primary: EMERALD, secondary: EMERALD_DARK },
-      testimonios: [],
       transferenciaBanco: "",
       transferenciaCuenta: "",
       transferenciaClabe: "",
       transferenciaTitular: "",
-
+      mensajeBienvenida: "",
     };
+
     setRestaurantes((prev) => [...prev, nuevo]);
     setActiveRest(id);
+
+    // Guardar también en Supabase
+    try {
+      await supabase.from("restaurants").insert({
+        id,
+        nombre: nuevo.nombre,
+        direccion: nuevo.direccion,
+        whatsapp: nuevo.whatsapp,
+        payment_link: nuevo.paymentLink,
+        zona_lat: nuevo.zonas.lat,
+        zona_lon: nuevo.zonas.lon,
+        zona_fee_per_km: nuevo.zonas.feePerKm,
+        logo: nuevo.logo,
+        theme_primary: nuevo.theme.primary,
+        theme_secondary: nuevo.theme.secondary,
+        transferencia_banco: nuevo.transferenciaBanco,
+        transferencia_cuenta: nuevo.transferenciaCuenta,
+        transferencia_clabe: nuevo.transferenciaClabe,
+        transferencia_titular: nuevo.transferenciaTitular,
+        mensaje_bienvenida: nuevo.mensajeBienvenida,
+        category_icons: nuevo.categoryIcons,
+        testimonios: nuevo.testimonios,
+      });
+    } catch (e) {
+      console.error("Error insertando restaurante en Supabase:", e);
+    }
   };
 
-  const updateRestaurant = (id, patch) => {
+  const updateRestaurant = async (id, patch) => {
     setRestaurantes((prev) =>
       prev.map((r) => (r.id === id ? { ...r, ...patch } : r))
     );
+
+    // Mapear solo campos que existen en la tabla
+    const rowPatch = {
+      nombre: patch.nombre,
+      direccion: patch.direccion,
+      whatsapp: patch.whatsapp,
+      payment_link: patch.paymentLink,
+      zona_lat: patch.zonas?.lat,
+      zona_lon: patch.zonas?.lon,
+      zona_fee_per_km: patch.zonas?.feePerKm,
+      logo: patch.logo,
+      theme_primary: patch.theme?.primary,
+      theme_secondary: patch.theme?.secondary,
+      transferencia_banco: patch.transferenciaBanco,
+      transferencia_cuenta: patch.transferenciaCuenta,
+      transferencia_clabe: patch.transferenciaClabe,
+      transferencia_titular: patch.transferenciaTitular,
+      mensaje_bienvenida: patch.mensajeBienvenida,
+      category_icons: patch.categoryIcons,
+      testimonios: patch.testimonios,
+    };
+
+    // quitar undefined para no romper el update
+    Object.keys(rowPatch).forEach(
+      (k) => rowPatch[k] === undefined && delete rowPatch[k]
+    );
+
+    try {
+      if (Object.keys(rowPatch).length > 0) {
+        await supabase.from("restaurants").update(rowPatch).eq("id", id);
+      }
+    } catch (e) {
+      console.error("Error actualizando restaurante en Supabase:", e);
+    }
   };
 
-  const addMenuItem = (restId, item) => {
+  // ======================
+  // MENÚ (platillos) – sincronizado con Supabase
+  // ======================
+
+  const addMenuItem = async (restId, item) => {
+    const id = crypto.randomUUID();
+    const newItem = {
+      ...item,
+      id,
+      activo: true,
+    };
+
     setRestaurantes((prev) =>
       prev.map((rr) =>
-        rr.id === restId
-          ? {
-              ...rr,
-              menu: [
-                ...rr.menu,
-                {
-                  ...item,
-                  id: crypto.randomUUID(),
-                  activo: true,
-                },
-              ],
-            }
-          : rr
+        rr.id === restId ? { ...rr, menu: [...rr.menu, newItem] } : rr
       )
     );
+
+    try {
+      await supabase.from("menu_items").insert({
+        id,
+        restaurant_id: restId,
+        nombre: item.nombre,
+        categoria: item.categoria,
+        precio: item.precio,
+        costo: item.costo,
+        stock: item.stock,
+        foto: item.foto,
+        ingredientes_base: item.ingredientesBase,
+        extras: item.extras,
+        activo: true,
+      });
+    } catch (e) {
+      console.error("Error insertando menú en Supabase:", e);
+    }
   };
 
-  const updateMenuItem = (restId, itemId, patch) => {
+  const updateMenuItem = async (restId, itemId, patch) => {
     setRestaurantes((prev) =>
       prev.map((rr) =>
         rr.id === restId
@@ -370,9 +581,32 @@ function useStore() {
           : rr
       )
     );
+
+    const rowPatch = {
+      nombre: patch.nombre,
+      categoria: patch.categoria,
+      precio: patch.precio,
+      costo: patch.costo,
+      stock: patch.stock,
+      foto: patch.foto,
+      ingredientes_base: patch.ingredientesBase,
+      extras: patch.extras,
+      activo: patch.activo,
+    };
+    Object.keys(rowPatch).forEach(
+      (k) => rowPatch[k] === undefined && delete rowPatch[k]
+    );
+
+    try {
+      if (Object.keys(rowPatch).length > 0) {
+        await supabase.from("menu_items").update(rowPatch).eq("id", itemId);
+      }
+    } catch (e) {
+      console.error("Error actualizando platillo en Supabase:", e);
+    }
   };
 
-  const deleteMenuItem = (restId, itemId) => {
+  const deleteMenuItem = async (restId, itemId) => {
     setRestaurantes((prev) =>
       prev.map((rr) =>
         rr.id === restId
@@ -380,61 +614,70 @@ function useStore() {
           : rr
       )
     );
+
+    try {
+      await supabase.from("menu_items").delete().eq("id", itemId);
+    } catch (e) {
+      console.error("Error eliminando platillo en Supabase:", e);
+    }
   };
+
+  // ======================
+  // VENTAS (de momento solo front; luego las podemos mandar a Supabase)
+  // ======================
 
   const closeSale = (restId, items, metodoPago) => {
-  const total = items.reduce((a, b) => a + (b.total || 0), 0);
-  const venta = {
-    id: crypto.randomUUID(),
-    fecha: new Date().toISOString(),
-    items,
-    metodoPago,
-    total,
-    estadoPago: "pendiente", // 👈 NUEVO
+    const total = items.reduce((a, b) => a + (b.total || 0), 0);
+    const venta = {
+      id: crypto.randomUUID(),
+      fecha: new Date().toISOString(),
+      items,
+      metodoPago,
+      total,
+      estadoPago: "pendiente",
+    };
+    setRestaurantes((prev) =>
+      prev.map((rr) =>
+        rr.id === restId ? { ...rr, ventas: [...(rr.ventas || []), venta] } : rr
+      )
+    );
+    // Si quieres, luego hacemos una tabla "ventas" en Supabase
   };
-  setRestaurantes((prev) =>
-    prev.map((rr) =>
-      rr.id === restId
-        ? { ...rr, ventas: [...(rr.ventas || []), venta] }
-        : rr
-    )
-  );
-};
 
-const updateSaleStatus = (restId, saleId, estadoPago) => {
-  setRestaurantes((prev) =>
-    prev.map((rr) => {
-      if (rr.id !== restId) return rr;
-      return {
-        ...rr,
-        ventas: (rr.ventas || []).map((v) =>
-          v.id === saleId ? { ...v, estadoPago } : v
-        ),
-      };
-    })
-  );
-};
-
+  const updateSaleStatus = (restId, saleId, estadoPago) => {
+    setRestaurantes((prev) =>
+      prev.map((rr) => {
+        if (rr.id !== restId) return rr;
+        return {
+          ...rr,
+          ventas: (rr.ventas || []).map((v) =>
+            v.id === saleId ? { ...v, estadoPago } : v
+          ),
+        };
+      })
+    );
+  };
 
   const r =
     restaurantes.find((x) => x.id === activeRest) || restaurantes[0] || null;
 
-return {
-  restaurantes,
-  activeRest,
-  setActiveRest,
-  tab,
-  setTab,
-  r,
-  addRestaurant,
-  updateRestaurant,
-  addMenuItem,
-  updateMenuItem,
-  deleteMenuItem,
-  closeSale,
-  updateSaleStatus,   // 👈 AÑADIDO
+  return {
+    restaurantes,
+    activeRest,
+    setActiveRest,
+    tab,
+    setTab,
+    r,
+    addRestaurant,
+    updateRestaurant,
+    addMenuItem,
+    updateMenuItem,
+    deleteMenuItem,
+    closeSale,
+    updateSaleStatus,
+    loading,
   };
-} 
+}
 
 // ===============================
 // HEADER / SELECTOR / TABS
@@ -873,7 +1116,7 @@ function MenuEditor({ r, store }) {
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, extras: e.target.value }))
               }
-             placeholder="Ej: Tocino|15, Aguacate|12"
+              placeholder="Ej: Tocino, aguacate, doble queso"
             />
           </div>
           <div
@@ -1236,12 +1479,9 @@ function CustomizeModal({ item, onClose, onAdd }) {
 
 const handleConfirm = () => {
   const basePrecio = item.precio || 0;
-const qty = seleccion.qty || 1;
-const extrasCost = (seleccion.extras || []).reduce((sum, extraName) => {
-  const match = extrasParsed.find((ex) => ex.name === extraName);
-  return sum + (match?.price || 0);
-}, 0);
-const total = basePrecio * qty + extrasCost;
+  const total =
+    basePrecio * (seleccion.qty || 1) +
+    (seleccion.extras?.length || 0) * 10;
 
   onAdd({
     ...item,
@@ -1254,22 +1494,8 @@ const total = basePrecio * qty + extrasCost;
   onClose();
 };
 
-const extras = item.extras || [];
 
-// Parseamos extras tipo "Nombre|precio" en una estructura amigable
-const extrasParsed = (extras || []).map((raw) => {
-  if (typeof raw !== "string") {
-    return { raw, name: String(raw), price: 0 };
-  }
-  const [namePart, pricePart] = raw.split("|");
-  const name = (namePart || "").trim();
-  const price = parseFloat(pricePart || "0") || 0;
-  return {
-    raw,
-    name: name || raw,
-    price,
-  };
-});
+  const extras = item.extras || [];
  
 
   return (
@@ -1382,17 +1608,16 @@ const extrasParsed = (extras || []).map((raw) => {
                 gap: 4,
               }}
             >
-             {extrasParsed.map((ext) => (
-  <Chip
-    key={ext.raw}
-    active={seleccion.extras.includes(ext.name)}
-    onClick={() => toggleExtra(ext.name)}
-    style={{ fontSize: 11 }}
-  >
-    {ext.price ? `${ext.name} (+${currency(ext.price)})` : ext.name}
-  </Chip>
-))}
-
+              {extras.map((ext) => (
+                <Chip
+                  key={ext}
+                  active={seleccion.extras.includes(ext)}
+                  onClick={() => toggleExtra(ext)}
+                  style={{ fontSize: 11 }}
+                >
+                  {ext}
+                </Chip>
+              ))}
             </div>
           )}
         </div>
@@ -2983,32 +3208,21 @@ function SettingsPanel({ r, store }) {
     setTestimonios((prev) => prev.filter((t) => t.id !== id));
   };
 
+  // 🔗 Construir link público SOLO de vista cliente
+  const buildPublicMenuUrl = () => {
+    if (typeof window === "undefined") return "";
+    const base = window.location.origin;
+    return `${base}/?view=cliente&rest=${encodeURIComponent(r.id)}`;
+  };
+
   // 🔗 COPIAR LINK DEL MENÚ
-<<<<<<< HEAD
-  // 🔗 COPIAR LINK DEL MENÚ (solo vista del cliente)
   const handleCopyMenuLink = () => {
     try {
-      if (typeof window === "undefined") return;
-
-      // Dominio + ruta actual (por ejemplo: https://plataforma-multi-restaurante-a3ga.vercel.app/)
-      const base = window.location.origin + window.location.pathname;
-
-      // Link que SÓLO muestra la vista del cliente
-      const url = `${base}?view=cliente`;
-
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(url);
-        alert(
-          "Link del menú (vista del cliente) copiado. Pégalo en WhatsApp, redes sociales, etc."
-=======
-  const handleCopyMenuLink = () => {
-    try {
-      const url = window.location.href;
+      const url = buildPublicMenuUrl();
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(url);
         alert(
           "Link del menú copiado. Pégalo en WhatsApp, redes sociales, etc."
->>>>>>> 72214db204f44cb80a07559385bad53ec069f1d8
         );
       } else {
         alert(
@@ -3017,19 +3231,6 @@ function SettingsPanel({ r, store }) {
       }
     } catch (e) {
       console.warn("No se pudo copiar el link:", e);
-<<<<<<< HEAD
-    }
-  };
-
-  // 📱 ABRIR QR DEMO CON ESE LINK (solo vista del cliente)
-  const handleOpenQrDemo = () => {
-    try {
-      if (typeof window === "undefined") return;
-
-      const base = window.location.origin + window.location.pathname;
-      const url = `${base}?view=cliente`;
-
-=======
       alert(
         "No se pudo copiar automáticamente. Copia el link desde la barra del navegador."
       );
@@ -3039,8 +3240,7 @@ function SettingsPanel({ r, store }) {
   // 📱 ABRIR QR DEMO CON ESE LINK
   const handleOpenQrDemo = () => {
     try {
-      const url = window.location.href;
->>>>>>> 72214db204f44cb80a07559385bad53ec069f1d8
+      const url = buildPublicMenuUrl();
       const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
         url
       )}`;
@@ -3050,10 +3250,6 @@ function SettingsPanel({ r, store }) {
     }
   };
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 72214db204f44cb80a07559385bad53ec069f1d8
   return (
     <Container>
       <Card style={{ marginBottom: 12 }}>
@@ -3411,102 +3607,63 @@ function SettingsPanel({ r, store }) {
 // APP PRINCIPAL
 // ===============================
 
-<<<<<<< HEAD
-// Vista del cliente protegida para que no truene la pantalla
-const PublicMenuSafe = ({
-  r,
-  cart,
-  onStartOrder,
-  onOpenCheckout,
-  onRemoveItem,
-  onClearCart,
-}) => {
-  if (!r) {
-    return (
-      <div style={{ padding: 16, fontSize: 14 }}>
-        Configura primero un restaurante para mostrar el menú al cliente.
-      </div>
-    );
-  }
-
-  try {
-    return (
-      <PublicMenu
-        r={r}
-        cart={cart}
-        onStartOrder={onStartOrder}
-        onOpenCheckout={onOpenCheckout}
-        onRemoveItem={onRemoveItem}
-        onClearCart={onClearCart}
-      />
-    );
-  } catch (error) {
-    console.error("Error en PublicMenu:", error);
-    return (
-      <div style={{ padding: 16, color: "red", fontSize: 14 }}>
-        Ocurrió un error al mostrar la vista del cliente.
-        <br />
-        La plataforma sigue funcionando, pero esta vista tiene un detalle en el código.
-      </div>
-    );
-  }
-};
-
-
-function App() {
-  const store = useStore();
-  const { restaurantes, activeRest, tab, setTab, setActiveRest, r } = store;
-const [cart, setCart] = useState([]);
-
-
-  // Carrito actual del cliente (antes de ir a pagar)
-const isPublicClient =
-typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("view") === "cliente";
-=======
 function App() {
   const store = useStore();
   const { restaurantes, activeRest, tab, setTab, setActiveRest, r } = store;
 
-  // Carrito actual del cliente (antes de ir a pagar)
   const [cart, setCart] = useState([]);
->>>>>>> 72214db204f44cb80a07559385bad53ec069f1d8
-  // Platillo que se está personalizando en este momento
   const [customItem, setCustomItem] = useState(null);
-  // Carrito que se manda al modal de pago
   const [checkoutCart, setCheckoutCart] = useState(null);
 
-  const handleStartOrder = (item, shouldCustomize) => {
-    if (!r) {
-      alert("Primero selecciona un restaurante.");
-      return;
+  // 🔍 Parámetros de la URL (vista cliente / id de restaurante)
+  let isPublicClient = false;
+  let publicRestId = null;
+
+  if (typeof window !== "undefined") {
+    const sp = new URLSearchParams(window.location.search);
+    isPublicClient = sp.get("view") === "cliente";
+    publicRestId = sp.get("rest");
+  }
+
+  // Restaurante que verá el cliente cuando entra con ?view=cliente
+  let rPublic = null;
+  if (isPublicClient) {
+    if (publicRestId) {
+      rPublic =
+        restaurantes.find((x) => x.id === publicRestId) ||
+        restaurantes[0] ||
+        null;
+    } else {
+      rPublic = restaurantes[0] || null;
     }
+  }
 
-    const puedePersonalizar =
-      (item.ingredientesBase && item.ingredientesBase.length) ||
-      (item.extras && item.extras.length);
+  const currentRestaurant = isPublicClient ? rPublic : r;
 
-    // Si el cliente quiere personalizar y el platillo tiene algo que personalizar,
-    // abrimos el modal de CustomizeModal y NO vamos a pagar todavía
-    if (shouldCustomize && puedePersonalizar) {
+  // ==========
+  // Handlers de carrito / pedidos (COMPARTIDOS)
+  // ==========
+
+  const handleStartOrder = (item, wantCustomize = false) => {
+    if (!item) return;
+    if (wantCustomize) {
       setCustomItem(item);
-      return;
+    } else {
+      const basePrecio = item.precio || 0;
+      const line = {
+        ...item,
+        qty: 1,
+        seleccionIngredientes: [],
+        seleccionExtras: [],
+        total: basePrecio,
+      };
+      setCart((prev) => [...prev, line]);
     }
-
-    // Si no personaliza, sólo agregamos directo al pedido actual (cart)
-    const line = {
-      ...item,
-      qty: 1,
-      total: item.precio || 0,
-      seleccionIngredientes: [], // no “Sin” nada si no personaliza
-      seleccionExtras: [],
-    };
-    setCart((prev) => [...prev, line]);
   };
 
-  // Cuando el cliente termina de personalizar en el modal
-  const handleAddCustomized = (line) => {
-    setCart((prev) => [...prev, line]);
+  const handleAddFromModal = (linea) => {
+    if (!linea) return;
+    setCart((prev) => [...prev, linea]);
     setCustomItem(null);
   };
 
@@ -3518,9 +3675,8 @@ function App() {
     setCart([]);
   };
 
-  // Aquí recién abrimos la pantalla de pago
   const handleOpenCheckout = () => {
-    if (!cart || cart.length === 0) {
+    if (!cart.length) {
       alert("Agrega al menos un platillo al pedido antes de confirmar.");
       return;
     }
@@ -3532,26 +3688,30 @@ function App() {
   };
 
   const handleSaleRegistered = (items, metodoPago) => {
-    if (!r) return;
-    store.closeSale(r.id, items, metodoPago);
-    alert("Venta registrada correctamente.");
-    // Limpiar carrito después de registrar la venta
+    if (!currentRestaurant) return;
+    store.closeSale(currentRestaurant.id, items, metodoPago);
     setCart([]);
     setCheckoutCart(null);
   };
 
-<<<<<<< HEAD
-  // 🟢 MODO SOLO CLIENTE (link con ?view=cliente)
+  // ======================
+  // MODO SOLO CLIENTE (link público)
+  // ======================
   if (isPublicClient) {
-    // Si aún no hay restaurante configurado
-    if (!r) {
+    if (!rPublic) {
       return (
         <>
           <HeaderBar titulo="Menú del restaurante" />
           <Container>
             <Card>
-              <p style={{ margin: 0 }}>
-                Aún no hay un restaurante configurado para mostrar al cliente.
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 13,
+                  color: "#9ca3af",
+                }}
+              >
+                No se encontró información del restaurante.
               </p>
             </Card>
           </Container>
@@ -3559,34 +3719,35 @@ function App() {
       );
     }
 
-    // Vista que verá el CLIENTE: sólo el menú, sin pestañas ni paneles
     return (
       <>
-        <HeaderBar titulo={r.nombre || "Menú del restaurante"} />
+        <HeaderBar
+          titulo={rPublic.nombre || "Menú del restaurante"}
+        />
         <Container>
           <Card>
-  <PublicMenuSafe
-    r={r}
-    cart={cart}
-    onStartOrder={handleStartOrder}
-    onOpenCheckout={handleOpenCheckout}
-    onRemoveItem={handleRemoveCartItem}
-    onClearCart={handleClearCart}
-  />
-</Card>
+            <PublicMenu
+              r={rPublic}
+              cart={cart}
+              onStartOrder={handleStartOrder}
+              onOpenCheckout={handleOpenCheckout}
+              onRemoveItem={handleRemoveCartItem}
+              onClearCart={handleClearCart}
+            />
+          </Card>
         </Container>
 
         {customItem && (
           <CustomizeModal
             item={customItem}
             onClose={() => setCustomItem(null)}
-            onAdd={handleAddCustomized}
+            onAdd={handleAddFromModal}
           />
         )}
 
         {checkoutCart && (
           <CheckoutModal
-            r={r}
+            r={rPublic}
             cart={checkoutCart}
             onClose={handleCloseCheckout}
             onSaleRegistered={handleSaleRegistered}
@@ -3596,120 +3757,92 @@ function App() {
     );
   }
 
-
-=======
->>>>>>> 72214db204f44cb80a07559385bad53ec069f1d8
-  // Vista inicial cuando aún no hay restaurante
-  if (!r) {
-    return (
-      <>
-        <HeaderBar titulo="Panel multi-restaurante" />
-        <Container>
-          <Card>
-            <h3 style={{ marginTop: 0, marginBottom: 6 }}>
-              Bienvenida a tu plataforma de restaurantes
-            </h3>
-            <p
-              style={{
-                fontSize: 13,
-                color: "#6b7280",
-                marginTop: 0,
-                marginBottom: 10,
-              }}
-            >
-              Para comenzar, crea tu primer restaurante. Luego podrás configurar
-              el menú, la vista del cliente y los reportes.
-            </p>
-            <button
-              type="button"
-              style={{
-                ...BTN,
-                background: EMERALD,
-                color: "#ffffff",
-                borderColor: EMERALD_DARK,
-                fontSize: 13,
-              }}
-              onClick={store.addRestaurant}
-            >
-              + Crear mi primer restaurante
-            </button>
-          </Card>
-        </Container>
-      </>
-    );
-  }
-
-  // Vista normal con pestañas
+  // ======================
+  // MODO ADMIN / PANEL COMPLETO
+  // ======================
   return (
     <>
-      <HeaderBar titulo="Plataforma Multi-Restaurante" />
+      <HeaderBar titulo="Panel multi-restaurante" />
+
       <RestaurantSelector
         restaurantes={restaurantes}
         activeRest={activeRest}
         setActiveRest={setActiveRest}
         addRestaurant={store.addRestaurant}
       />
+
       <TabsBar tab={tab} setTab={setTab} />
 
-      {tab === "menu" && <MenuEditor r={r} store={store} />}
-
-<<<<<<< HEAD
-     {tab === "public" && (
-  <Container>
-    <Card>
-      <PublicMenuSafe
-        r={r}
-        cart={cart}
-        onStartOrder={handleStartOrder}
-        onOpenCheckout={handleOpenCheckout}
-        onRemoveItem={handleRemoveCartItem}
-        onClearCart={handleClearCart}
-      />
-    </Card>
-  </Container>
-)}
-=======
-      {tab === "public" && (
+      {!currentRestaurant ? (
         <Container>
           <Card>
-            <PublicMenu
-              r={r}
-              cart={cart}
-              onStartOrder={handleStartOrder}
-              onOpenCheckout={handleOpenCheckout}
-              onRemoveItem={handleRemoveCartItem}
-              onClearCart={handleClearCart}
-            />
+            <p style={{ margin: 0 }}>
+              Agrega un restaurante o selecciona uno existente para comenzar.
+            </p>
           </Card>
         </Container>
-      )}
->>>>>>> 72214db204f44cb80a07559385bad53ec069f1d8
+      ) : (
+        <>
+          {tab === "menu" && (
+            <MenuEditor r={currentRestaurant} store={store} />
+          )}
 
-      {tab === "settings" && <SettingsPanel r={r} store={store} />}
+          {tab === "public" && (
+            <>
+              <Container>
+                <Card>
+                  <p
+                    style={{
+                      marginTop: 0,
+                      marginBottom: 8,
+                      fontSize: 12,
+                      color: "#6b7280",
+                    }}
+                  >
+                    Así verá el cliente tu menú cuando compartas el link desde
+                    Ajustes.
+                  </p>
+                  <PublicMenu
+                    r={currentRestaurant}
+                    cart={cart}
+                    onStartOrder={handleStartOrder}
+                    onOpenCheckout={handleOpenCheckout}
+                    onRemoveItem={handleRemoveCartItem}
+                    onClearCart={handleClearCart}
+                  />
+                </Card>
+              </Container>
 
-      {tab === "reports" && <ReportsPanel r={r} store={store} />}
+              {customItem && (
+                <CustomizeModal
+                  item={customItem}
+                  onClose={() => setCustomItem(null)}
+                  onAdd={handleAddFromModal}
+                />
+              )}
 
-      {customItem && (
-        <CustomizeModal
-          item={customItem}
-          onClose={() => setCustomItem(null)}
-          onAdd={handleAddCustomized}
-        />
-      )}
+              {checkoutCart && (
+                <CheckoutModal
+                  r={currentRestaurant}
+                  cart={checkoutCart}
+                  onClose={handleCloseCheckout}
+                  onSaleRegistered={handleSaleRegistered}
+                />
+              )}
+            </>
+          )}
 
-      {checkoutCart && (
-        <CheckoutModal
-          r={r}
-          cart={checkoutCart}
-          onClose={handleCloseCheckout}
-          onSaleRegistered={handleSaleRegistered}
-        />
+          {tab === "settings" && (
+            <SettingsPanel r={currentRestaurant} store={store} />
+          )}
+
+          {tab === "reports" && (
+            <ReportsPanel r={currentRestaurant} store={store} />
+          )}
+        </>
       )}
     </>
   );
 }
 
 export default App;
-
-
-
