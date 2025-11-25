@@ -1457,46 +1457,64 @@ function CustomizeModal({ item, onClose, onAdd }) {
   const [seleccion, setSeleccion] = useState({
     // Lista de ingredientes que el cliente QUIERE QUITAR
     ingredientes: [],
+    // aquí solo guardamos los NOMBRES de los extras seleccionados
     extras: [],
     qty: 1,
   });
 
   const base = item.ingredientesBase || [];
- 
 
+  // 🔹 Normalizar extras: aceptar strings o objetos { nombre, costo }
+  const extrasInfo = Array.isArray(item.extras)
+    ? item.extras.map((ex) =>
+        typeof ex === "string" ? { nombre: ex, costo: 0 } : ex
+      )
+    : [];
 
-  const toggleExtra = (extra) => {
+  // 🔹 Activar / desactivar un extra por NOMBRE
+  const toggleExtra = (nombreExtra) => {
     setSeleccion((prev) => {
-      const exists = prev.extras.includes(extra);
+      const exists = prev.extras.includes(nombreExtra);
       return {
         ...prev,
         extras: exists
-          ? prev.extras.filter((e) => e !== extra)
-          : [...prev.extras, extra],
+          ? prev.extras.filter((e) => e !== nombreExtra)
+          : [...prev.extras, nombreExtra],
       };
     });
   };
 
-const handleConfirm = () => {
-  const basePrecio = item.precio || 0;
-  const total =
-    basePrecio * (seleccion.qty || 1) +
-    (seleccion.extras?.length || 0) * 10;
+  const handleConfirm = () => {
+    const basePrecio = item.precio || 0;
 
-  onAdd({
-    ...item,
-    qty: seleccion.qty || 1,
-    // 👉 aquí guardamos directamente LO QUE SE QUITA
-    seleccionIngredientes: seleccion.ingredientes,
-    seleccionExtras: seleccion.extras,
-    total,
-  });
-  onClose();
-};
+    // 🔹 Buscar datos completos de los extras seleccionados
+    const extrasSeleccionadas = extrasInfo.filter((ex) =>
+      seleccion.extras.includes(ex.nombre)
+    );
 
+    // 🔹 Sumar el costo unitario de todos los extras
+    const costoExtrasUnitario = extrasSeleccionadas.reduce(
+      (acc, ex) => acc + (ex.costo || 0),
+      0
+    );
 
-  const extras = item.extras || [];
- 
+    const qty = seleccion.qty || 1;
+    // 🔹 Total = (precio base + extras) * cantidad
+    const total = (basePrecio + costoExtrasUnitario) * qty;
+
+    onAdd({
+      ...item,
+      qty,
+      // 👉 aquí guardamos directamente LO QUE SE QUITA
+      seleccionIngredientes: seleccion.ingredientes,
+      // 👉 y los nombres de los extras añadidos
+      seleccionExtras: seleccion.extras,
+      total,
+    });
+    onClose();
+  };
+
+  const extras = extrasInfo;
 
   return (
     <div
@@ -1554,6 +1572,7 @@ const handleConfirm = () => {
           Personaliza este platillo como lo quiera el cliente.
         </p>
 
+        {/* INGREDIENTES BASE */}
         <div style={{ marginBottom: 8 }}>
           <Label style={{ fontSize: 11 }}>Ingredientes base</Label>
           {base.length === 0 ? (
@@ -1568,32 +1587,32 @@ const handleConfirm = () => {
                 gap: 4,
               }}
             >
-             {base.map((ing) => (
-  <Chip
-    key={ing}
-    // Activo = ingrediente marcado como "SIN"
-    active={seleccion.ingredientes.includes(ing)}
-    onClick={() => {
-      setSeleccion((prev) => {
-        const exists = prev.ingredientes.includes(ing);
-        return {
-          ...prev,
-          ingredientes: exists
-            ? prev.ingredientes.filter((i) => i !== ing) // lo vuelve a dejar normal
-            : [...prev.ingredientes, ing],              // lo marca como SIN
-        };
-      });
-    }}
-    style={{ fontSize: 11 }}
-  >
-    {ing}
-  </Chip>
-))}
-
+              {base.map((ing) => (
+                <Chip
+                  key={ing}
+                  // Activo = ingrediente marcado como "SIN"
+                  active={seleccion.ingredientes.includes(ing)}
+                  onClick={() => {
+                    setSeleccion((prev) => {
+                      const exists = prev.ingredientes.includes(ing);
+                      return {
+                        ...prev,
+                        ingredientes: exists
+                          ? prev.ingredientes.filter((i) => i !== ing) // lo vuelve a dejar normal
+                          : [...prev.ingredientes, ing], // lo marca como SIN
+                      };
+                    });
+                  }}
+                  style={{ fontSize: 11 }}
+                >
+                  {ing}
+                </Chip>
+              ))}
             </div>
           )}
         </div>
 
+        {/* EXTRAS OPCIONALES */}
         <div style={{ marginBottom: 8 }}>
           <Label style={{ fontSize: 11 }}>Extras opcionales</Label>
           {extras.length === 0 ? (
@@ -1608,20 +1627,22 @@ const handleConfirm = () => {
                 gap: 4,
               }}
             >
-              {extras.map((ext) => (
+              {extras.map((extra) => (
                 <Chip
-                  key={ext}
-                  active={seleccion.extras.includes(ext)}
-                  onClick={() => toggleExtra(ext)}
+                  key={extra.nombre}
+                  active={seleccion.extras.includes(extra.nombre)}
+                  onClick={() => toggleExtra(extra.nombre)}
                   style={{ fontSize: 11 }}
                 >
-                  {ext}
+                  {extra.nombre}
+                  {extra.costo ? ` (+$${extra.costo} MXN)` : ""}
                 </Chip>
               ))}
             </div>
           )}
         </div>
 
+        {/* CANTIDAD */}
         <div style={{ marginBottom: 8 }}>
           <Label style={{ fontSize: 11 }}>Cantidad</Label>
           <Input
@@ -1638,6 +1659,7 @@ const handleConfirm = () => {
           />
         </div>
 
+        {/* PIE: PRECIO Y BOTÓN */}
         <div
           style={{
             display: "flex",
@@ -3252,6 +3274,7 @@ function SettingsPanel({ r, store }) {
 
   return (
     <Container>
+      {/* CARD 1: DATOS DEL RESTAURANTE + LINK/QR */}
       <Card style={{ marginBottom: 12 }}>
         <h3 style={{ marginTop: 0, marginBottom: 6 }}>
           Ajustes del restaurante
@@ -3450,6 +3473,7 @@ function SettingsPanel({ r, store }) {
           </div>
         </Grid>
 
+        {/* BOTÓN GUARDAR */}
         <div
           style={{
             display: "flex",
@@ -3506,6 +3530,7 @@ function SettingsPanel({ r, store }) {
         </div>
       </Card>
 
+      {/* CARD 2: TESTIMONIOS */}
       <Card>
         <h4 style={{ marginTop: 0, marginBottom: 8 }}>
           Testimonios de clientes
@@ -3614,6 +3639,42 @@ function App() {
   const [cart, setCart] = useState([]);
   const [customItem, setCustomItem] = useState(null);
   const [checkoutCart, setCheckoutCart] = useState(null);
+ 
+// Construye el link público de menú para un restaurante
+  const getClientUrlForRestaurant = (restaurantId) => {
+    const baseUrl = window.location.origin; // local o Vercel automáticamente
+    return `${baseUrl}/?view=cliente&rest=${encodeURIComponent(restaurantId)}`;
+  };
+
+  const handleShareClientLink = () => {
+    const restId = selectedRestaurant?.id; // si tu propiedad se llama distinto, cámbiala
+    const restName = selectedRestaurant?.nombre || "mi restaurante";
+
+    if (!restId) {
+      alert("Primero selecciona un restaurante.");
+      return;
+    }
+
+    const url = getClientUrlForRestaurant(restId);
+
+    if (navigator.share) {
+      // Compartir nativo en celular
+      navigator
+        .share({
+          title: `Menú de ${restName}`,
+          text: "Te comparto el menú de mi restaurante",
+          url,
+        })
+        .catch(() => {});
+    } else {
+      // Copiar al portapapeles
+      navigator.clipboard
+        .writeText(url)
+        .then(() => alert("Link del menú copiado:\n" + url))
+        .catch(() => alert("Copia este link:\n" + url));
+    }
+  };
+
 
   // 🔍 Parámetros de la URL (vista cliente / id de restaurante)
   let isPublicClient = false;
@@ -3693,6 +3754,7 @@ function App() {
     setCart([]);
     setCheckoutCart(null);
   };
+
 
   // ======================
   // MODO SOLO CLIENTE (link público)
