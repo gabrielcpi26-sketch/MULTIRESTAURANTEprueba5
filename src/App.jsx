@@ -646,7 +646,45 @@ function useStore() {
     setTab,
     r,
     addRestaurant,
-    updateRestaurant,
+    // ======================
+// ACTUALIZAR RESTAURANTE
+// ======================
+const updateRestaurant = async (id, patch) => {
+  // 1) Actualizar en estado local
+  setRestaurantes((prev) =>
+    prev.map((r) => (r.id === id ? { ...r, ...patch } : r))
+  );
+
+  // 2) Preparar solo campos válidos para Supabase
+  const rowPatch = {
+    nombre: patch.nombre,
+    direccion: patch.direccion,
+    whatsapp: patch.whatsapp,
+    payment_link: patch.paymentLink,
+    transferencia_banco: patch.transferenciaBanco,
+    transferencia_cuenta: patch.transferenciaCuenta,
+    transferencia_clabe: patch.transferenciaClabe,
+    transferencia_titular: patch.transferenciaTitular,
+    logo: patch.logo,
+    theme_primary: patch.theme?.primary,
+    theme_secondary: patch.theme?.secondary,
+    testimonios: patch.testimonios,
+  };
+
+  // Quitar undefined
+  Object.keys(rowPatch).forEach(
+    (k) => rowPatch[k] === undefined && delete rowPatch[k]
+  );
+
+  try {
+    if (Object.keys(rowPatch).length > 0) {
+      await supabase.from("restaurants").update(rowPatch).eq("id", id);
+    }
+  } catch (e) {
+    console.error("Error actualizando restaurante en Supabase:", e);
+  }
+};
+
     addMenuItem,
     updateMenuItem,
     deleteMenuItem,
