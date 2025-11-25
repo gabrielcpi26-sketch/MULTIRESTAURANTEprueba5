@@ -284,7 +284,6 @@ function useStore() {
         let result = [];
 
         if (restRows && restRows.length > 0) {
-          // Obtener todos los IDs
           const restIds = restRows.map((r) => r.id);
 
           // 2) Leer los platillos de menu_items
@@ -333,7 +332,7 @@ function useStore() {
             },
             menu: menuByRest[row.id] || [],
             categoryIcons: row.category_icons || DEFAULT_ICONS,
-            ventas: [], // de momento las ventas se quedan en front
+            ventas: [],
             logo: row.logo || "",
             theme: {
               primary: row.theme_primary || EMERALD,
@@ -376,7 +375,7 @@ function useStore() {
 
         setRestaurantes(result);
         setActiveRest(result[0]?.id || null);
-        // respaldo en localStorage
+
         if (typeof window !== "undefined") {
           window.localStorage.setItem(
             STORAGE_RESTAURANTES,
@@ -385,7 +384,7 @@ function useStore() {
         }
       } catch (e) {
         console.warn("Fallo Supabase, usando localStorage / demo:", e);
-        // Fallback localStorage
+
         if (typeof window !== "undefined") {
           try {
             const saved = window.localStorage.getItem(STORAGE_RESTAURANTES);
@@ -403,7 +402,6 @@ function useStore() {
           }
         }
 
-        // Si tampoco hay localStorage, usar demo
         const demoId = "demo-rest";
         const demo = [
           {
@@ -454,21 +452,17 @@ function useStore() {
   // ======================
 
   const addRestaurant = async () => {
-    // 1) Preguntar el nombre del nuevo restaurante
     const nombre = window.prompt(
       "Nombre del nuevo restaurante:",
       "Nuevo restaurante"
     );
+    if (!nombre) return;
 
-    if (!nombre) return; // si cancela, no hacemos nada
-
-    // 2) Generar un id a partir del nombre (para la URL y Supabase)
     const id = slugifyRestaurantId(nombre);
 
-    // 3) Crear el objeto base en el estado local (tu estructura actual)
     const nuevo = {
       id,
-      nombre, // usamos el nombre que escribió la persona
+      nombre,
       direccion: "",
       whatsapp: "",
       paymentLink: "",
@@ -486,20 +480,15 @@ function useStore() {
       mensajeBienvenida: "",
     };
 
-    // 4) Actualizar estado en React
     setRestaurantes((prev) => [...prev, nuevo]);
     setActiveRest(id);
 
-    // 5) Guardar en Supabase
     try {
       const { error } = await supabase.from("restaurants").insert({
         id,
-        nombre,           // columnas que SI tienes en tu tabla
+        nombre,
         logo: nuevo.logo || null,
-        // si en tu tabla SOLO tienes id, created_at, nombre, logo
-        // no mandamos más campos para evitar el error 400
       });
-
       if (error) {
         console.error("Error insertando restaurante en Supabase:", error);
       }
@@ -508,8 +497,44 @@ function useStore() {
     }
   };
 
+  // ACTUALIZAR RESTAURANTE
+  const updateRestaurant = async (id, patch) => {
+    // 1) Actualizar en estado local
+    setRestaurantes((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, ...patch } : r))
+    );
+
+    // 2) Preparar solo campos válidos para Supabase
+    const rowPatch = {
+      nombre: patch.nombre,
+      direccion: patch.direccion,
+      whatsapp: patch.whatsapp,
+      payment_link: patch.paymentLink,
+      transferencia_banco: patch.transferenciaBanco,
+      transferencia_cuenta: patch.transferenciaCuenta,
+      transferencia_clabe: patch.transferenciaClabe,
+      transferencia_titular: patch.transferenciaTitular,
+      logo: patch.logo,
+      theme_primary: patch.theme?.primary,
+      theme_secondary: patch.theme?.secondary,
+      testimonios: patch.testimonios,
+    };
+
+    Object.keys(rowPatch).forEach(
+      (k) => rowPatch[k] === undefined && delete rowPatch[k]
+    );
+
+    try {
+      if (Object.keys(rowPatch).length > 0) {
+        await supabase.from("restaurants").update(rowPatch).eq("id", id);
+      }
+    } catch (e) {
+      console.error("Error actualizando restaurante en Supabase:", e);
+    }
+  };
+
   // ======================
-  // MENÚ (platillos) – sincronizado con Supabase
+  // MENÚ (platillos)
   // ======================
 
   const addMenuItem = async (restId, item) => {
@@ -600,7 +625,7 @@ function useStore() {
   };
 
   // ======================
-  // VENTAS (de momento solo front; luego las podemos mandar a Supabase)
+  // VENTAS (solo front por ahora)
   // ======================
 
   const closeSale = (restId, items, metodoPago) => {
@@ -618,7 +643,6 @@ function useStore() {
         rr.id === restId ? { ...rr, ventas: [...(rr.ventas || []), venta] } : rr
       )
     );
-    // Si quieres, luego hacemos una tabla "ventas" en Supabase
   };
 
   const updateSaleStatus = (restId, saleId, estadoPago) => {
@@ -646,45 +670,7 @@ function useStore() {
     setTab,
     r,
     addRestaurant,
-    // ======================
-// ACTUALIZAR RESTAURANTE
-// ======================
-const updateRestaurant = async (id, patch) => {
-  // 1) Actualizar en estado local
-  setRestaurantes((prev) =>
-    prev.map((r) => (r.id === id ? { ...r, ...patch } : r))
-  );
-
-  // 2) Preparar solo campos válidos para Supabase
-  const rowPatch = {
-    nombre: patch.nombre,
-    direccion: patch.direccion,
-    whatsapp: patch.whatsapp,
-    payment_link: patch.paymentLink,
-    transferencia_banco: patch.transferenciaBanco,
-    transferencia_cuenta: patch.transferenciaCuenta,
-    transferencia_clabe: patch.transferenciaClabe,
-    transferencia_titular: patch.transferenciaTitular,
-    logo: patch.logo,
-    theme_primary: patch.theme?.primary,
-    theme_secondary: patch.theme?.secondary,
-    testimonios: patch.testimonios,
-  };
-
-  // Quitar undefined
-  Object.keys(rowPatch).forEach(
-    (k) => rowPatch[k] === undefined && delete rowPatch[k]
-  );
-
-  try {
-    if (Object.keys(rowPatch).length > 0) {
-      await supabase.from("restaurants").update(rowPatch).eq("id", id);
-    }
-  } catch (e) {
-    console.error("Error actualizando restaurante en Supabase:", e);
-  }
-};
-
+    updateRestaurant,
     addMenuItem,
     updateMenuItem,
     deleteMenuItem,
@@ -693,6 +679,7 @@ const updateRestaurant = async (id, patch) => {
     loading,
   };
 }
+
 
 // ===============================
 // HEADER / SELECTOR / TABS
