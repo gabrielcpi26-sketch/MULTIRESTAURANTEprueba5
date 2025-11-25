@@ -4,6 +4,20 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "./supabaseClient";
+// Crea un id de restaurante a partir del nombre, por ejemplo "NUBIA´S SNACK" -> "nubias-snack"
+function slugifyRestaurantId(nombre) {
+  if (!nombre) {
+    return "rest-" + Date.now().toString(36);
+  }
+
+  return nombre
+    .toLowerCase()
+    .normalize("NFD") // quita acentos
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-") // todo lo que no sea letra o número -> guion
+    .replace(/(^-|-$)+/g, "");   // quita guiones al inicio/fin
+}
+
 
 
 // ===============================
@@ -440,10 +454,21 @@ function useStore() {
   // ======================
 
   const addRestaurant = async () => {
-    const id = crypto.randomUUID();
+    // 1) Preguntar el nombre del nuevo restaurante
+    const nombre = window.prompt(
+      "Nombre del nuevo restaurante:",
+      "Nuevo restaurante"
+    );
+
+    if (!nombre) return; // si cancela, no hacemos nada
+
+    // 2) Generar un id a partir del nombre (para la URL y Supabase)
+    const id = slugifyRestaurantId(nombre);
+
+    // 3) Crear el objeto base en el estado local (tu estructura actual)
     const nuevo = {
       id,
-      nombre: "Nuevo restaurante",
+      nombre, // usamos el nombre que escribió la persona
       direccion: "",
       whatsapp: "",
       paymentLink: "",
@@ -461,73 +486,25 @@ function useStore() {
       mensajeBienvenida: "",
     };
 
+    // 4) Actualizar estado en React
     setRestaurantes((prev) => [...prev, nuevo]);
     setActiveRest(id);
 
-    // Guardar también en Supabase
+    // 5) Guardar en Supabase
     try {
-      await supabase.from("restaurants").insert({
+      const { error } = await supabase.from("restaurants").insert({
         id,
-        nombre: nuevo.nombre,
-        direccion: nuevo.direccion,
-        whatsapp: nuevo.whatsapp,
-        payment_link: nuevo.paymentLink,
-        zona_lat: nuevo.zonas.lat,
-        zona_lon: nuevo.zonas.lon,
-        zona_fee_per_km: nuevo.zonas.feePerKm,
-        logo: nuevo.logo,
-        theme_primary: nuevo.theme.primary,
-        theme_secondary: nuevo.theme.secondary,
-        transferencia_banco: nuevo.transferenciaBanco,
-        transferencia_cuenta: nuevo.transferenciaCuenta,
-        transferencia_clabe: nuevo.transferenciaClabe,
-        transferencia_titular: nuevo.transferenciaTitular,
-        mensaje_bienvenida: nuevo.mensajeBienvenida,
-        category_icons: nuevo.categoryIcons,
-        testimonios: nuevo.testimonios,
+        nombre,           // columnas que SI tienes en tu tabla
+        logo: nuevo.logo || null,
+        // si en tu tabla SOLO tienes id, created_at, nombre, logo
+        // no mandamos más campos para evitar el error 400
       });
-    } catch (e) {
-      console.error("Error insertando restaurante en Supabase:", e);
-    }
-  };
 
-  const updateRestaurant = async (id, patch) => {
-    setRestaurantes((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, ...patch } : r))
-    );
-
-    // Mapear solo campos que existen en la tabla
-    const rowPatch = {
-      nombre: patch.nombre,
-      direccion: patch.direccion,
-      whatsapp: patch.whatsapp,
-      payment_link: patch.paymentLink,
-      zona_lat: patch.zonas?.lat,
-      zona_lon: patch.zonas?.lon,
-      zona_fee_per_km: patch.zonas?.feePerKm,
-      logo: patch.logo,
-      theme_primary: patch.theme?.primary,
-      theme_secondary: patch.theme?.secondary,
-      transferencia_banco: patch.transferenciaBanco,
-      transferencia_cuenta: patch.transferenciaCuenta,
-      transferencia_clabe: patch.transferenciaClabe,
-      transferencia_titular: patch.transferenciaTitular,
-      mensaje_bienvenida: patch.mensajeBienvenida,
-      category_icons: patch.categoryIcons,
-      testimonios: patch.testimonios,
-    };
-
-    // quitar undefined para no romper el update
-    Object.keys(rowPatch).forEach(
-      (k) => rowPatch[k] === undefined && delete rowPatch[k]
-    );
-
-    try {
-      if (Object.keys(rowPatch).length > 0) {
-        await supabase.from("restaurants").update(rowPatch).eq("id", id);
+      if (error) {
+        console.error("Error insertando restaurante en Supabase:", error);
       }
     } catch (e) {
-      console.error("Error actualizando restaurante en Supabase:", e);
+      console.error("Error insertando restaurante en Supabase:", e);
     }
   };
 
@@ -765,7 +742,33 @@ function HeaderBar({ titulo }) {
   );
 }
 
-function RestaurantSelector({ restaurantes, activeRest, setActiveRest, addRestaurant }) {
+function RestaurantSelector({
+  restaurantes,
+  activeRest,
+  setActiveRest,
+  addRestaurant,
+}) {
+  // 1) Leer ?admin= de la URL (ej: ?admin=gabriel-rest)
+  let adminRestId = null;
+  if (typeof window !== "undefined") {
+    const params = new URLSearchParams(window.location.search);
+    adminRestId = params.get("admin");
+  }
+
+  // 2) Filtrar restaurantes visibles según el admin
+  const visibles = useMemo(() => {
+    if (!adminRestId) {
+      // Sin ?admin= → se muestran todos (modo demo / tú como dueña)
+      return restaurantes;
+    }
+    // Con ?admin= → solo el restaurante de ese id
+    return restaurantes.filter((r) => r.id === adminRestId);
+  }, [adminRestId, restaurantes]);
+
+  // Si por alguna razón no encuentra coincidencias, caemos de nuevo en todos
+  const listaRestaurantes =
+    visibles && visibles.length > 0 ? visibles : restaurantes;
+
   return (
     <Container style={{ paddingTop: 0, paddingBottom: 10 }}>
       <Card>
@@ -789,7 +792,7 @@ function RestaurantSelector({ restaurantes, activeRest, setActiveRest, addRestau
               Restaurantes
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {restaurantes.map((r) => (
+              {listaRestaurantes.map((r) => (
                 <Chip
                   key={r.id}
                   active={r.id === activeRest}
@@ -829,6 +832,7 @@ function RestaurantSelector({ restaurantes, activeRest, setActiveRest, addRestau
     </Container>
   );
 }
+
 
 function TabsBar({ tab, setTab }) {
   const tabs = [
