@@ -1701,7 +1701,7 @@ function CustomizeModal({ item, onClose, onAdd }) {
 // ===============================
 
 function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onClearCart }) {
- const [categoriaActiva, setCategoriaActiva] = useState("Comidas");
+  const [categoriaActiva, setCategoriaActiva] = useState("Comidas");
 
   const categorias = useMemo(() => {
     if (!r) return [];
@@ -1727,6 +1727,10 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
 
   const themePrimary = r.theme?.primary || EMERALD;
   const themeSecondary = r.theme?.secondary || EMERALD_DARK;
+
+  // 👇 detectar si el usuario está en móvil
+  const isMobile =
+    typeof window !== "undefined" && window.innerWidth < 768;
 
   return (
     <div
@@ -1785,27 +1789,28 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
             }}
           >
             {r.nombre || "Restaurante sin nombre"}
-        {/* MENSAJE PERSONALIZADO DESDE AJUSTES */}
-        {r.mensajeBienvenida && (
-          <div
-            style={{
-              marginTop: 6,
-              marginBottom: 10,
-              padding: "6px 10px",
-              borderRadius: 10,
-              background: "rgba(15,23,42,0.7)",
-              border: "1px solid rgba(148,163,184,0.5)",
-              fontSize: 12,
-              lineHeight: 1.5,
-              color: "#e5e7eb",
-              whiteSpace: "pre-line",
-            }}
-          >
-            {r.mensajeBienvenida}
           </div>
-        )}
 
-          </div>
+          {/* MENSAJE PERSONALIZADO DESDE AJUSTES */}
+          {r.mensajeBienvenida && (
+            <div
+              style={{
+                marginTop: 6,
+                marginBottom: 6,
+                padding: "6px 10px",
+                borderRadius: 10,
+                background: "rgba(15,23,42,0.7)",
+                border: "1px solid rgba(148,163,184,0.5)",
+                fontSize: 12,
+                lineHeight: 1.5,
+                color: "#e5e7eb",
+                whiteSpace: "pre-line",
+              }}
+            >
+              {r.mensajeBienvenida}
+            </div>
+          )}
+
           <div
             style={{
               fontSize: 11,
@@ -1868,15 +1873,20 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
         )}
       </div>
 
+      {/* CONTENEDOR PRINCIPAL MENÚ + TU PEDIDO */}
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0,1.5fr) minmax(0,1fr)",
+          display: isMobile ? "flex" : "grid",
+          flexDirection: isMobile ? "column" : "row",
+          gridTemplateColumns: isMobile
+            ? "none"
+            : "minmax(0,1.5fr) minmax(0,1fr)",
           gap: 10,
           marginTop: 8,
           alignItems: "stretch",
         }}
       >
+        {/* LISTA DE PLATILLOS */}
         <div
           style={{
             borderRadius: 18,
@@ -1884,7 +1894,7 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
             border: "1px solid rgba(148,163,184,0.35)",
             padding: 8,
             minHeight: 220,
-            maxHeight: 350,
+            maxHeight: isMobile ? "none" : 350,
             overflowY: "auto",
           }}
         >
@@ -1994,8 +2004,10 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
                     <div
                       style={{
                         display: "flex",
-                        alignItems: "center",
+                        alignItems: isMobile ? "flex-start" : "center",
                         justifyContent: "space-between",
+                        flexDirection: isMobile ? "column" : "row",
+                        gap: isMobile ? 6 : 0,
                         marginTop: 4,
                       }}
                     >
@@ -2011,7 +2023,9 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
                       <div
                         style={{
                           display: "flex",
+                          flexDirection: isMobile ? "column" : "row",
                           gap: 4,
+                          width: isMobile ? "100%" : "auto",
                         }}
                       >
                         <button
@@ -2019,11 +2033,12 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
                           style={{
                             ...BTN_OUTLINE,
                             fontSize: 11,
-                            padding: "4px 8px",
+                            padding: "6px 8px",
                             color: "#e5e7eb",
                             borderColor: "rgba(148,163,184,0.5)",
                             background:
                               "linear-gradient(90deg, rgba(15,23,42,0.9), rgba(15,118,110,0.8))",
+                            width: isMobile ? "100%" : "auto",
                           }}
                           onClick={() => onStartOrder(item, true)}
                         >
@@ -2034,15 +2049,16 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
                           style={{
                             ...BTN,
                             fontSize: 11,
-                            padding: "4px 8px",
+                            padding: "6px 8px",
                             background:
                               "linear-gradient(135deg,#22c55e,#4ade80)",
                             color: "#022c22",
                             borderColor: "rgba(74,222,128,0.7)",
+                            width: isMobile ? "100%" : "auto",
                           }}
                           onClick={() => onStartOrder(item, false)}
                         >
-                          Agregar
+                          Agregar al pedido
                         </button>
                       </div>
                     </div>
@@ -2053,6 +2069,7 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
           )}
         </div>
 
+        {/* PANEL "TU PEDIDO" */}
         <div
           style={{
             borderRadius: 18,
@@ -2061,9 +2078,10 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
             border: "1px solid rgba(148,163,184,0.35)",
             padding: 10,
             minHeight: 220,
-            maxHeight: 350,
+            maxHeight: isMobile ? "none" : 350,
             overflowY: "auto",
             color: "#e5e7eb",
+            marginTop: isMobile ? 8 : 0,
           }}
         >
           <h4
@@ -2089,7 +2107,7 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
             Desde el celular del cliente verán aquí su resumen antes de
             confirmar.
           </p>
-                    <div
+          <div
             style={{
               fontSize: 11,
               color: "#9ca3af",
@@ -2100,8 +2118,8 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
           >
             {!cart || cart.length === 0 ? (
               <>
-                Cuando el cliente agregue platillos, aquí aparecerá el detalle y el
-                botón para confirmar el pedido y enviarlo por WhatsApp.
+                Cuando el cliente agregue platillos, aquí aparecerá el detalle y
+                el botón para confirmar el pedido y enviarlo por WhatsApp.
               </>
             ) : (
               <>
@@ -2181,6 +2199,7 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
                     alignItems: "center",
                     gap: 8,
                     marginTop: 4,
+                    flexDirection: isMobile ? "column" : "row",
                   }}
                 >
                   {onClearCart && (
@@ -2194,6 +2213,7 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
                         background: "transparent",
                         color: "#e5e7eb",
                         borderColor: "rgba(148,163,184,0.7)",
+                        width: isMobile ? "100%" : "auto",
                       }}
                     >
                       Vaciar pedido
@@ -2207,11 +2227,12 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
                       style={{
                         ...BTN,
                         fontSize: 11,
-                        padding: "4px 10px",
+                        padding: "6px 10px",
                         background:
                           "linear-gradient(90deg,#22c55e,#4ade80)",
                         color: "#022c22",
                         borderColor: "rgba(74,222,128,0.7)",
+                        width: isMobile ? "100%" : "auto",
                       }}
                     >
                       Confirmar pedido y pagar
