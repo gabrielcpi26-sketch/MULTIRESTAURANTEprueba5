@@ -233,6 +233,32 @@ const currency = (value) => {
   return `$${value.toFixed(2)}`;
 };
 
+// Convierte el texto de extras en objetos { nombre, costo }
+function parseExtrasInput(text) {
+  if (!text) return [];
+
+  return text
+    .split(",")
+    .map((chunk) => chunk.trim())
+    .filter(Boolean)
+    .map((chunk, idx) => {
+      // Formato esperado: "Tocino/15"
+      const [nombreRaw, precioRaw] = chunk.split("/").map((p) => p.trim());
+
+      const nombre = nombreRaw || `Extra ${idx + 1}`;
+      const costo = precioRaw
+        ? Number(precioRaw.replace(/[^\d.]/g, "")) || 0
+        : 0;
+
+      return {
+        id: `extra-${Date.now()}-${idx}`,
+        nombre,
+        costo,
+      };
+    });
+}
+
+
 // Iconos por categoría
 const DEFAULT_ICONS = {
   Comidas: "🍽️",
@@ -914,7 +940,6 @@ function TabsBar({ tab, setTab }) {
 // ===============================
 // COMPONENTES DE ADMINISTRACIÓN
 // ===============================
-
 const Card = ({ children, style }) => (
   <div
     style={{
@@ -966,6 +991,21 @@ function MenuEditor({ r, store }) {
     });
   };
 
+  // 👉 Para mostrar los extras existentes como "Tocino/15, Aguacate/20"
+  const formatExtrasForInput = (extrasArr) => {
+    if (!extrasArr) return "";
+    return extrasArr
+      .map((ex, idx) => {
+        if (!ex) return "";
+        if (typeof ex === "string") return ex; // compatibilidad con datos viejos
+        const nombre = ex.nombre || `Extra ${idx + 1}`;
+        const costo = ex.costo ? ex.costo : 0;
+        return costo ? `${nombre}/${costo}` : nombre;
+      })
+      .filter(Boolean)
+      .join(", ");
+  };
+
   const handleAdd = () => {
     if (!form.nombre || !form.precio) {
       alert("Nombre y precio son obligatorios.");
@@ -985,9 +1025,8 @@ function MenuEditor({ r, store }) {
       ingredientesBase: form.ingredientesBase
         ? form.ingredientesBase.split(",").map((s) => s.trim())
         : [],
-      extras: form.extras
-        ? form.extras.split(",").map((s) => s.trim())
-        : [],
+      // 👇 ahora guardamos objetos {nombre, costo}
+      extras: parseExtrasInput(form.extras),
     });
 
     setForm({
@@ -1135,14 +1174,19 @@ function MenuEditor({ r, store }) {
             />
           </div>
           <div>
-            <Label>Extras opcionales (separados por coma)</Label>
+            <Label>
+              Extras opcionales (nombre/precio, separados por coma)
+            </Label>
             <Input
               value={form.extras}
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, extras: e.target.value }))
               }
-              placeholder="Ej: Tocino, aguacate, doble queso"
+              placeholder="Ej: Tocino/15, Aguacate/20, Doble queso/25"
             />
+            <div style={{ fontSize: 11, color: "#6b7280", marginTop: 3 }}>
+              Escribe cada extra como <b>nombre/precio</b> y sepáralos con coma.
+            </div>
           </div>
           <div
             style={{
@@ -1334,7 +1378,11 @@ function MenuEditor({ r, store }) {
                       type="number"
                       value={item.precio}
                       onChange={(e) =>
-                        handleUpdateField(item.id, "precio", Number(e.target.value || 0))
+                        handleUpdateField(
+                          item.id,
+                          "precio",
+                          Number(e.target.value || 0)
+                        )
                       }
                       style={{ fontSize: 11, padding: "5px 8px" }}
                     />
@@ -1389,21 +1437,23 @@ function MenuEditor({ r, store }) {
                   />
                 </div>
                 <div>
-                  <Label style={{ fontSize: 10 }}>Extras opcionales</Label>
+                  <Label style={{ fontSize: 10 }}>
+                    Extras opcionales (nombre/precio)
+                  </Label>
                   <TextArea
-                    value={(item.extras || []).join(", ")}
+                    value={formatExtrasForInput(item.extras || [])}
                     onChange={(e) =>
                       handleUpdateField(
                         item.id,
                         "extras",
-                        e.target.value
-                          .split(",")
-                          .map((s) => s.trim())
-                          .filter(Boolean)
+                        parseExtrasInput(e.target.value)
                       )
                     }
                     style={{ fontSize: 11 }}
                   />
+                  <div style={{ fontSize: 10, color: "#6b7280", marginTop: 2 }}>
+                    Ejemplo: <b>Tocino/15, Aguacate/20</b>
+                  </div>
                 </div>
 
                 <div
@@ -2735,6 +2785,7 @@ function ReportsPanel({ r, store }) {
       return new Date();
     }
   };
+
 
   const isSameDay = (d1, d2) =>
     d1.getFullYear() === d2.getFullYear() &&
