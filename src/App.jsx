@@ -3826,15 +3826,17 @@ function App() {
   const [cart, setCart] = useState([]);
   const [customItem, setCustomItem] = useState(null);
   const [checkoutCart, setCheckoutCart] = useState(null);
- 
-// Construye el link público de menú para un restaurante
+
+  // Construye el link público de menú para un restaurante
   const getClientUrlForRestaurant = (restaurantId) => {
     const baseUrl = window.location.origin; // local o Vercel automáticamente
     return `${baseUrl}/?view=cliente&rest=${encodeURIComponent(restaurantId)}`;
   };
 
+  // (Si luego quieres usar este botón, lo dejamos aquí por si acaso)
   const handleShareClientLink = () => {
-    const restId = selectedRestaurant?.id; // si tu propiedad se llama distinto, cámbiala
+    const selectedRestaurant = r;
+    const restId = selectedRestaurant?.id;
     const restName = selectedRestaurant?.nombre || "mi restaurante";
 
     if (!restId) {
@@ -3845,7 +3847,6 @@ function App() {
     const url = getClientUrlForRestaurant(restId);
 
     if (navigator.share) {
-      // Compartir nativo en celular
       navigator
         .share({
           title: `Menú de ${restName}`,
@@ -3854,7 +3855,6 @@ function App() {
         })
         .catch(() => {});
     } else {
-      // Copiar al portapapeles
       navigator.clipboard
         .writeText(url)
         .then(() => alert("Link del menú copiado:\n" + url))
@@ -3862,15 +3862,20 @@ function App() {
     }
   };
 
-
-  // 🔍 Parámetros de la URL (vista cliente / id de restaurante)
+  // ======================
+  // FLAGS DE LA URL
+  // ======================
   let isPublicClient = false;
   let publicRestId = null;
+  let isDemo = false;
 
   if (typeof window !== "undefined") {
     const sp = new URLSearchParams(window.location.search);
     isPublicClient = sp.get("view") === "cliente";
     publicRestId = sp.get("rest");
+    // DEMO: /demo o ?demo=1
+    isDemo =
+      window.location.pathname === "/demo" || sp.get("demo") === "1";
   }
 
   // Restaurante que verá el cliente cuando entra con ?view=cliente
@@ -3888,9 +3893,9 @@ function App() {
 
   const currentRestaurant = isPublicClient ? rPublic : r;
 
-  // ==========
-  // Handlers de carrito / pedidos (COMPARTIDOS)
-  // ==========
+  // ================
+  // HANDLERS CARRITO
+  // ================
 
   const handleStartOrder = (item, wantCustomize = false) => {
     if (!item) return;
@@ -3942,9 +3947,114 @@ function App() {
     setCheckoutCart(null);
   };
 
+  // ======================
+  // MODO DEMO (SOLO CLIENTE)
+  // ======================
+  if (isDemo) {
+    const demoRestaurant = {
+      id: "demo-rest",
+      nombre: "Demo Burgers & Snacks",
+      logo: "",
+      theme: {
+        primary: EMERALD,
+        secondary: EMERALD_DARK,
+      },
+      mensajeBienvenida:
+        "🍔 ¡Ordena en 2 clics y recibe en minutos!\nSin llamadas, sin filas — solo toca y disfruta.\n📍 Restaurante local favorito en tu ciudad.",
+      categoryIcons: {
+        Comidas: "🍔",
+        Bebidas: "🥤",
+        Postres: "🍰",
+      },
+      menu: [
+        {
+          id: "demo-1",
+          nombre: "Hamburguesa clásica",
+          categoria: "Comidas",
+          precio: 89,
+          activo: true,
+          ingredientesBase: ["Pan brioche", "Carne 100g", "Queso", "Lechuga"],
+          extras: [
+            { nombre: "Queso extra", costo: 10 },
+            { nombre: "Tocino", costo: 18 },
+            { nombre: "Carne doble", costo: 35 },
+          ],
+        },
+        {
+          id: "demo-2",
+          nombre: "Papas a la francesa",
+          categoria: "Comidas",
+          precio: 49,
+          activo: true,
+          ingredientesBase: ["Papas fritas", "Sal de casa"],
+          extras: [
+            { nombre: "Queso cheddar", costo: 12 },
+            { nombre: "Salsa extra", costo: 5 },
+          ],
+        },
+        {
+          id: "demo-3",
+          nombre: "Refresco 600ml",
+          categoria: "Bebidas",
+          precio: 25,
+          activo: true,
+          ingredientesBase: ["Bebida fría"],
+          extras: [],
+        },
+        {
+          id: "demo-4",
+          nombre: "Malteada de fresa",
+          categoria: "Postres",
+          precio: 69,
+          activo: true,
+          ingredientesBase: ["Leche", "Helado de fresa", "Crema batida"],
+          extras: [{ nombre: "Topping extra", costo: 10 }],
+        },
+      ],
+    };
+
+    return (
+      <>
+        <HeaderBar titulo="Demo menú digital" />
+        <Container>
+          <Card>
+            <PublicMenu
+              r={demoRestaurant}
+              cart={cart}
+              onStartOrder={handleStartOrder}
+              onOpenCheckout={handleOpenCheckout}
+              onRemoveItem={handleRemoveCartItem}
+              onClearCart={handleClearCart}
+            />
+          </Card>
+        </Container>
+
+        {customItem && (
+          <CustomizeModal
+            item={customItem}
+            onClose={() => setCustomItem(null)}
+            onAdd={handleAddFromModal}
+          />
+        )}
+
+        {checkoutCart && (
+          <CheckoutModal
+            r={demoRestaurant}
+            cart={checkoutCart}
+            onClose={handleCloseCheckout}
+            onSaleRegistered={() => {
+              // En DEMO no guardamos la venta en Supabase
+              setCart([]);
+              setCheckoutCart(null);
+            }}
+          />
+        )}
+      </>
+    );
+  }
 
   // ======================
-  // MODO SOLO CLIENTE (link público)
+  // MODO SOLO CLIENTE (link público real)
   // ======================
   if (isPublicClient) {
     if (!rPublic) {
@@ -3970,9 +4080,7 @@ function App() {
 
     return (
       <>
-        <HeaderBar
-          titulo={rPublic.nombre || "Menú del restaurante"}
-        />
+        <HeaderBar titulo={rPublic.nombre || "Menú del restaurante"} />
         <Container>
           <Card>
             <PublicMenu
