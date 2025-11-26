@@ -558,8 +558,6 @@ function useStore() {
         nombre: item.nombre,
         categoria: item.categoria,
         precio: item.precio,
-        costo: item.costo,
-        stock: item.stock,
         foto: item.foto,
         ingredientes_base: item.ingredientesBase,
         extras: item.extras,
@@ -588,8 +586,6 @@ function useStore() {
       nombre: patch.nombre,
       categoria: patch.categoria,
       precio: patch.precio,
-      costo: patch.costo,
-      stock: patch.stock,
       foto: patch.foto,
       ingredientes_base: patch.ingredientesBase,
       extras: patch.extras,
@@ -1483,63 +1479,75 @@ function MenuEditor({ r, store }) {
 // ===============================
 
 function CustomizeModal({ item, onClose, onAdd }) {
-  const [seleccion, setSeleccion] = useState({
-    // Lista de ingredientes que el cliente QUIERE QUITAR
-    ingredientes: [],
-    // aquí solo guardamos los NOMBRES de los extras seleccionados
-    extras: [],
-    qty: 1,
-  });
+  // ingredientes que el cliente QUIERE QUITAR
+  const [ingredientesFuera, setIngredientesFuera] = useState([]);
+  // nombres de extras seleccionados
+  const [extrasSeleccionados, setExtrasSeleccionados] = useState([]);
+  // cantidad del platillo
+  const [qty, setQty] = useState(1);
 
   const base = item.ingredientesBase || [];
 
-  // 🔹 Normalizar extras: aceptar strings o objetos { nombre, costo }
+  // Normalizar extras: string → { nombre, costo }
   const extrasInfo = Array.isArray(item.extras)
     ? item.extras.map((ex) =>
         typeof ex === "string" ? { nombre: ex, costo: 0 } : ex
       )
     : [];
 
-  // 🔹 Activar / desactivar un extra por NOMBRE
   const toggleExtra = (nombreExtra) => {
-    setSeleccion((prev) => {
-      const exists = prev.extras.includes(nombreExtra);
-      return {
-        ...prev,
-        extras: exists
-          ? prev.extras.filter((e) => e !== nombreExtra)
-          : [...prev.extras, nombreExtra],
-      };
+    setExtrasSeleccionados((prev) =>
+      prev.includes(nombreExtra)
+        ? prev.filter((e) => e !== nombreExtra)
+        : [...prev, nombreExtra]
+    );
+  };
+
+  const toggleIngrediente = (ing) => {
+    setIngredientesFuera((prev) =>
+      prev.includes(ing)
+        ? prev.filter((i) => i !== ing) // lo vuelve a dejar normal
+        : [...prev, ing] // lo marca como SIN
+    );
+  };
+
+  // control + / -
+  const changeQty = (delta) => {
+    setQty((prev) => {
+      const next = prev + delta;
+      if (next < 1) return 1;
+      if (next > 99) return 99;
+      return next;
     });
   };
 
   const handleConfirm = () => {
     const basePrecio = item.precio || 0;
 
-    // 🔹 Buscar datos completos de los extras seleccionados
-    const extrasSeleccionadas = extrasInfo.filter((ex) =>
-      seleccion.extras.includes(ex.nombre)
+    const extrasSeleccionadasInfo = extrasInfo.filter((ex) =>
+      extrasSeleccionados.includes(ex.nombre)
     );
 
-    // 🔹 Sumar el costo unitario de todos los extras
-    const costoExtrasUnitario = extrasSeleccionadas.reduce(
+    const costoExtrasUnitario = extrasSeleccionadasInfo.reduce(
       (acc, ex) => acc + (ex.costo || 0),
       0
     );
 
-    const qty = seleccion.qty || 1;
-    // 🔹 Total = (precio base + extras) * cantidad
     const total = (basePrecio + costoExtrasUnitario) * qty;
 
+    // 🔴 AQUÍ armamos la línea tal como la espera "Tu pedido"
     onAdd({
-      ...item,
+      id: item.id,
+      nombre: item.nombre,
+      categoria: item.categoria,
+      precio: item.precio,
+      foto: item.foto,
       qty,
-      // 👉 aquí guardamos directamente LO QUE SE QUITA
-      seleccionIngredientes: seleccion.ingredientes,
-      // 👉 y los nombres de los extras añadidos
-      seleccionExtras: seleccion.extras,
+      seleccionIngredientes: ingredientesFuera, // lo que se quita
+      seleccionExtras: extrasSeleccionados, // nombres de extras
       total,
     });
+
     onClose();
   };
 
@@ -1619,19 +1627,8 @@ function CustomizeModal({ item, onClose, onAdd }) {
               {base.map((ing) => (
                 <Chip
                   key={ing}
-                  // Activo = ingrediente marcado como "SIN"
-                  active={seleccion.ingredientes.includes(ing)}
-                  onClick={() => {
-                    setSeleccion((prev) => {
-                      const exists = prev.ingredientes.includes(ing);
-                      return {
-                        ...prev,
-                        ingredientes: exists
-                          ? prev.ingredientes.filter((i) => i !== ing) // lo vuelve a dejar normal
-                          : [...prev.ingredientes, ing], // lo marca como SIN
-                      };
-                    });
-                  }}
+                  active={ingredientesFuera.includes(ing)}
+                  onClick={() => toggleIngrediente(ing)}
                   style={{ fontSize: 11 }}
                 >
                   {ing}
@@ -1659,7 +1656,7 @@ function CustomizeModal({ item, onClose, onAdd }) {
               {extras.map((extra) => (
                 <Chip
                   key={extra.nombre}
-                  active={seleccion.extras.includes(extra.nombre)}
+                  active={extrasSeleccionados.includes(extra.nombre)}
                   onClick={() => toggleExtra(extra.nombre)}
                   style={{ fontSize: 11 }}
                 >
@@ -1671,21 +1668,57 @@ function CustomizeModal({ item, onClose, onAdd }) {
           )}
         </div>
 
-        {/* CANTIDAD */}
+        {/* CANTIDAD CON + / - BONITO */}
         <div style={{ marginBottom: 8 }}>
           <Label style={{ fontSize: 11 }}>Cantidad</Label>
-          <Input
-            type="number"
-            min={1}
-            value={seleccion.qty}
-            onChange={(e) =>
-              setSeleccion((prev) => ({
-                ...prev,
-                qty: Number(e.target.value || 1),
-              }))
-            }
-            style={{ maxWidth: 80 }}
-          />
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              borderRadius: 999,
+              border: "1px solid #e5e7eb",
+              overflow: "hidden",
+              boxShadow: "0 4px 10px rgba(15,23,42,0.12)",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => changeQty(-1)}
+              style={{
+                border: "none",
+                padding: "6px 10px",
+                cursor: "pointer",
+                background: "#f3f4f6",
+                fontSize: 14,
+              }}
+            >
+              −
+            </button>
+            <div
+              style={{
+                minWidth: 40,
+                textAlign: "center",
+                fontSize: 13,
+                fontWeight: 600,
+              }}
+            >
+              {qty}
+            </div>
+            <button
+              type="button"
+              onClick={() => changeQty(1)}
+              style={{
+                border: "none",
+                padding: "6px 10px",
+                cursor: "pointer",
+                background: "#22c55e",
+                color: "#f0fdf4",
+                fontSize: 14,
+              }}
+            >
+              +
+            </button>
+          </div>
         </div>
 
         {/* PIE: PRECIO Y BOTÓN */}
@@ -1725,6 +1758,7 @@ function CustomizeModal({ item, onClose, onAdd }) {
   );
 }
 
+
 // ===============================
 // VISTA DEL CLIENTE
 // ===============================
@@ -1760,6 +1794,18 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
   // 👇 detectar si el usuario está en móvil
   const isMobile =
     typeof window !== "undefined" && window.innerWidth < 768;
+  const trustPillStyle = {
+    display: "inline-flex",
+    alignItems: "center",
+    padding: "3px 8px",
+    borderRadius: 999,
+    fontSize: 10,
+    color: "#e5e7eb",
+    background: "rgba(15,23,42,0.7)",
+    border: "1px solid rgba(148,163,184,0.45)",
+    whiteSpace: "nowrap",
+  };
+
 
   return (
     <div
@@ -1775,24 +1821,30 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
         gap: 10,
       }}
     >
+     
+
+
       <div
         style={{
           display: "flex",
-          gap: 10,
-          alignItems: "center",
+          gap: 12,
+          alignItems: "flex-start",
         }}
       >
+        {/* LOGO */}
         <div
           style={{
-            width: 44,
-            height: 44,
-            borderRadius: 16,
-            background: "rgba(15,23,42,0.9)",
-            border: "1px solid rgba(148,163,184,0.6)",
+            width: 64,
+            height: 64,
+            borderRadius: 20,
+            background:
+              "radial-gradient(circle at top, rgba(15,23,42,0.95), rgba(15,23,42,0.85))",
+            border: "1px solid rgba(148,163,184,0.7)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             overflow: "hidden",
+            boxShadow: "0 8px 20px rgba(0,0,0,0.6)",
           }}
         >
           {r.logo ? (
@@ -1806,9 +1858,11 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
               }}
             />
           ) : (
-            <span style={{ fontSize: 20 }}>🍽️</span>
+            <span style={{ fontSize: 26 }}>🍽️</span>
           )}
         </div>
+
+        {/* TEXTO HERO */}
         <div style={{ flex: 1 }}>
           <div
             style={{
@@ -1820,7 +1874,7 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
             {r.nombre || "Restaurante sin nombre"}
           </div>
 
-          {/* MENSAJE PERSONALIZADO DESDE AJUSTES */}
+          {/* MENSAJE PERSONALIZADO DESDE AJUSTES (SI LO USAS) */}
           {r.mensajeBienvenida && (
             <div
               style={{
@@ -1840,19 +1894,50 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
             </div>
           )}
 
+          {/* TEXTO DE ORDEN RÁPIDA */}
+          <div
+            style={{
+              marginTop: 2,
+              fontSize: 12,
+              color: "#f9fafb",
+              fontWeight: 600,
+            }}
+          >
+            🍔 ¡Ordena en 2 clics y recibe en minutos!
+          </div>
           <div
             style={{
               fontSize: 11,
               color: "#9ca3af",
+              marginBottom: 6,
             }}
           >
-            Explora el menú, personaliza tu orden y envíala por WhatsApp.
+            Sin llamadas, sin filas — solo toca y disfruta.
+          </div>
+
+          {/* LÍNEA DE CONFIANZA (PASTILLAS) */}
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 6,
+              marginTop: 2,
+            }}
+          >
+            <span style={trustPillStyle}>✅ Más de 120 pedidos esta semana</span>
+            <span style={trustPillStyle}>⭐ Clientes felices: 4.9/5</span>
+            <span style={trustPillStyle}>
+              📍 Restaurante local favorito en{" "}
+              {r.ciudad || "tu ciudad"}
+            </span>
           </div>
         </div>
+
         <div>
           <Badge tone="success">Online</Badge>
         </div>
       </div>
+
 
       <div
         style={{
@@ -2276,6 +2361,7 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
     </div>
   );
 }
+
 
 // ===============================
 // CHECKOUT MODAL (PANTALLA CLIENTE RESUMEN + PAGO)
