@@ -375,32 +375,33 @@ function useStore() {
         }
 
         // Si Supabase estaba vacío, usamos demo
-        if (!result.length) {
-          const demoId = "demo-rest";
-          result = [
-            {
-              id: demoId,
-              nombre: "Mi restaurante demo",
-              direccion: "Calle Sabor #123, Ciudad",
-              whatsapp: "",
-              paymentLink: "",
-              zonas: { lat: 0, lon: 0, feePerKm: 0 },
-              menu: [],
-              categoryIcons: DEFAULT_ICONS,
-              ventas: [],
-              logo: "",
-              theme: { primary: EMERALD, secondary: EMERALD_DARK },
-              testimonios: [],
-              transferenciaBanco: "",
-              transferenciaCuenta: "",
-              transferenciaClabe: "",
-              transferenciaTitular: "",
-              mensajeBienvenida: "",
-            },
-          ];
-        }
+    
+  if (!result || result.length === 0) {
+        const demoId = "demo-rest";
+        result = [
+          {
+            id: demoId,
+            nombre: "Mi restaurante demo",
+            direccion: "Calle Sabor #123, Ciudad",
+            whatsapp: "",
+            paymentLink: "",
+            zonas: { lat: 0, lon: 0, feePerKm: 0 },
+            menu: [],
+            categoryIcons: DEFAULT_ICONS,
+            ventas: [],
+            logo: "",
+            theme: { primary: EMERALD, secondary: EMERALD_DARK },
+            testimonios: [],
+            transferenciaBanco: "",
+            transferenciaCuenta: "",
+            transferenciaClabe: "",
+            transferenciaTitular: "",
+            mensajeBienvenida: "",
+          },
+        ];
+      }
 
-        setRestaurantes(result);
+      setRestaurantes(result);
         setActiveRest(result[0]?.id || null);
 
         if (typeof window !== "undefined") {
@@ -412,17 +413,20 @@ function useStore() {
       } catch (e) {
         console.warn("Fallo Supabase, usando localStorage / demo:", e);
 
-        if (typeof window !== "undefined") {
-          try {
-            const saved = window.localStorage.getItem(STORAGE_RESTAURANTES);
-            if (saved) {
-              const parsed = JSON.parse(saved);
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                setRestaurantes(parsed);
-                setActiveRest(parsed[0].id);
-                setLoading(false);
-                return;
-              }
+        if (view === "admin") {
+  const saved = localStorage.getItem("admin-auth");
+  if (saved !== ADMIN_PASSWORD) {
+    const pass = prompt("Ingresa la contraseña de administrador:");
+    if (pass !== ADMIN_PASSWORD) {
+      alert("Contraseña incorrecta");
+      return <div style={{ padding: 20 }}>Acceso denegado</div>;
+    }
+    localStorage.setItem("admin-auth", ADMIN_PASSWORD);
+  }
+
+  return <AdminPanel ...props />;
+}
+
             }
           } catch (err) {
             console.warn("Error leyendo STORAGE_RESTAURANTES:", err);

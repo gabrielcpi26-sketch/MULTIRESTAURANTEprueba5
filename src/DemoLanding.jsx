@@ -29,7 +29,7 @@ const DemoLanding = () => {
       titulo: "Demo E-commerce · Carrito y pedidos",
       linea: "Catálogo, carrito y pedidos en línea para vender más todos los días.",
       items: ["Catálogo", "Carrito de compra", "Pedidos en línea"],
-      demoUrl: "https://vida-divina-app.vercel.app/catalogo", // <-- EDITABLE
+      demoUrl: "https://tu-link-demo-ecommerce.com", // <-- EDITABLE
     },
   };
 
@@ -50,7 +50,7 @@ const DemoLanding = () => {
 
     // ⚠️ PON AQUÍ TU NÚMERO DE WHATSAPP EN FORMATO INTERNACIONAL (SIN +, NI ESPACIOS)
     // Ejemplo México: 5215512345678
-    const tuNumeroWhatsApp = "524872586302"; // <-- CAMBIA ESTO
+    const tuNumeroWhatsApp = "5215512345678"; // <-- CAMBIA ESTO
 
     const mensaje = `
 Hola, soy ${nombre}.
@@ -234,6 +234,83 @@ Me interesa una DEMO de tus apps.
           border: 1px solid rgba(51,65,85,0.9);
           padding: 14px;
           box-shadow: 0 18px 30px rgba(15,23,42,0.9);
+        }
+
+        /* AVATAR FEMENINO ELEGANTE */
+        .avatar-wrap {
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr);
+          gap: 10px;
+          align-items: center;
+          margin-bottom: 14px;
+        }
+
+        .avatar-media {
+          width: 70px;
+          height: 70px;
+          border-radius: 999px;
+          overflow: hidden;
+          border: 2px solid rgba(251, 191, 183, 0.85);
+          box-shadow: 0 0 24px rgba(251, 113, 133, 0.5);
+          background: radial-gradient(circle at 30% 20%, #f9a8d4, #1d2438);
+          position: relative;
+        }
+
+        .avatar-video {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .avatar-badge-ring {
+          position: absolute;
+          inset: -3px;
+          border-radius: 999px;
+          border: 2px solid rgba(244, 114, 182, 0.35);
+          pointer-events: none;
+          animation: avatar-pulse 2.4s infinite;
+        }
+
+        @keyframes avatar-pulse {
+          0% { opacity: 0.4; transform: scale(1); }
+          50% { opacity: 0.9; transform: scale(1.05); }
+          100% { opacity: 0.4; transform: scale(1); }
+        }
+
+        .avatar-bubble {
+          border-radius: 14px;
+          padding: 8px 10px;
+          background: rgba(15,23,42,0.95);
+          border: 1px solid rgba(148,163,184,0.6);
+          font-size: 11px;
+          color: #e5e7eb;
+          position: relative;
+        }
+
+        .avatar-bubble::before {
+          content: "";
+          position: absolute;
+          left: -6px;
+          top: 18px;
+          width: 10px;
+          height: 10px;
+          background: rgba(15,23,42,0.95);
+          border-left: 1px solid rgba(148,163,184,0.6);
+          border-bottom: 1px solid rgba(148,163,184,0.6);
+          transform: rotate(45deg);
+        }
+
+        .avatar-name {
+          font-weight: 600;
+          font-size: 11px;
+          margin-bottom: 2px;
+          color: #f9fafb;
+        }
+
+        .avatar-role {
+          font-size: 10px;
+          color: #9ca3af;
+          margin-bottom: 4px;
         }
 
         .demo-tabs {
@@ -454,7 +531,7 @@ Me interesa una DEMO de tus apps.
           <section>
             <div className="demo-badge">
               <span className="demo-dot" />
-              <span>Demo interactiva lista para compartir con tus clientes</span>
+              <span>Demo interactiva lista para mostrar a tus clientes</span>
             </div>
 
             <h1 className="demo-title">
@@ -477,7 +554,7 @@ Me interesa una DEMO de tus apps.
 
             <div className="demo-benefits">
               <div className="demo-benefit-item">
-                <span>1. </span>Entras a esta demo y eliges el tipo de negocio que se parece al tuyo.
+                <span>1. </span>Eliges el tipo de negocio que se parece al tuyo.
               </div>
               <div className="demo-benefit-item">
                 <span>2. </span>Ves cómo se vería tu app funcionando para tus clientes.
@@ -493,8 +570,35 @@ Me interesa una DEMO de tus apps.
             </div>
           </section>
 
-          {/* Columna derecha: demos + formulario */}
+          {/* Columna derecha: avatar + demos + formulario */}
           <section className="demo-right-card">
+            {/* AVATAR FEMENINO ELEGANTE */}
+            <div className="avatar-wrap">
+              <div className="avatar-media">
+                {/* 🎥 Cuando tengas tu video de avatar, colócalo en /public/avatar-host.mp4
+                    y se verá aquí automáticamente */}
+                <video
+                  className="avatar-video"
+                  src="/avatar-host.mp4"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                />
+                <div className="avatar-badge-ring" />
+              </div>
+              <div className="avatar-bubble">
+                <div className="avatar-name">Host digital</div>
+                <div className="avatar-role">Asesora virtual de Gabriel Cruz Apps</div>
+                <div>
+                  Bienvenido a tu demo interactiva ✨. Elige arriba el tipo de negocio,
+                  toca <strong>“Probar demo en vivo”</strong> y mira cómo podría verse tu
+                  app. Si quieres algo hecho a tu medida, llena el formulario y te
+                  contactamos por WhatsApp.
+                </div>
+              </div>
+            </div>
+
             <div className="demo-tabs">
               <button
                 className={
