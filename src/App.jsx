@@ -3820,6 +3820,13 @@ function SettingsPanel({ r, store }) {
 // ===============================
 
 function App() {
+  const path = window.location.pathname;
+
+  // Si la URL termina en /demo, mostramos SOLO la landing de demo
+  if (path === "/demo") {
+    return <DemoLanding />;
+  }
+
   const store = useStore();
   const { restaurantes, activeRest, tab, setTab, setActiveRest, r } = store;
 
