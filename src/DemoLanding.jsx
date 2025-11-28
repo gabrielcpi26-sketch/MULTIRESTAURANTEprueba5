@@ -4,30 +4,32 @@ import React, { useState } from "react";
 const DemoLanding = () => {
   const [activeDemo, setActiveDemo] = useState("restaurante");
 
+  // 👉 Aquí configuras las demos y los links REALES
   const demoConfig = {
     restaurante: {
       titulo: "Demo Restaurante · Menú digital y pedidos",
-      linea: "Así verían tus clientes el menú desde su celular.",
-      items: ["Hamburguesa clásica", "Pasta Alfredo", "Combo familiar"],
-      demoUrl: "https://plataforma-multi-restaurante-a3ga.vercel.app/?view=cliente&rest=nubia-s-snack", // ⚠️ CAMBIA ESTO
+      linea: "Muestra tu menú desde el celular y recibe pedidos sin complicarte.",
+      items: ["Entradas", "Platillos fuertes", "Promos y combos"],
+      demoUrl:
+        "https://plataforma-multi-restaurante-a3ga.vercel.app/?view=cliente&rest=nubia-s-snack", // <-- TU DEMO REAL
     },
     gym: {
-      titulo: "Demo Gym / Fitness · Membresías y clases",
-      linea: "Agenda, control de socios y recordatorios.",
-      items: ["Membresía mensual", "Clase funcional", "Paquete anual"],
-      demoUrl: "https://plataforma-multi-restaurante-a3ga.vercel.app/?view=cliente&rest=nubia-s-snack", // ⚠️ CAMBIA ESTO
+      titulo: "Demo Gym / Fitness · Socios y clases",
+      linea: "Controla membresías, clases y comunicación con tus clientes.",
+      items: ["Membresías", "Agenda de clases", "Recordatorios"],
+      demoUrl: "https://tu-link-demo-gym.com", // <-- EDITABLE
     },
     hotel: {
-      titulo: "Demo Hotel / Airbnb · Reservas rápidas",
-      linea: "Reservas, upsell de servicios y mensajes automáticos.",
-      items: ["Noche habitación doble", "Desayuno", "Late check-out"],
-      demoUrl: "https://plataforma-multi-restaurante-a3ga.vercel.app/?view=cliente&rest=nubia-s-snack", // ⚠️ CAMBIA ESTO
+      titulo: "Demo Hotel / Airbnb · Reservas fáciles",
+      linea: "Reservas rápidas, upsell de servicios y mejor experiencia al huésped.",
+      items: ["Reservas", "Servicios extra", "Check-in sencillo"],
+      demoUrl: "https://tu-link-demo-hotel.com", // <-- EDITABLE
     },
     ecom: {
-      titulo: "Demo E-commerce · Carrito de compra",
-      linea: "Catálogo, carrito y flujo de pago simple.",
-      items: ["Playera", "Jeans", "Tenis"],
-      demoUrl: "https://plataforma-multi-restaurante-a3ga.vercel.app/?view=cliente&rest=nubia-s-snack", // ⚠️ CAMBIA ESTO
+      titulo: "Demo E-commerce · Carrito y pedidos",
+      linea: "Catálogo, carrito y pedidos en línea para vender más todos los días.",
+      items: ["Catálogo", "Carrito de compra", "Pedidos en línea"],
+      demoUrl: "https://vida-divina-app.vercel.app/catalogo", // <-- EDITABLE
     },
   };
 
@@ -48,7 +50,7 @@ const DemoLanding = () => {
 
     // ⚠️ PON AQUÍ TU NÚMERO DE WHATSAPP EN FORMATO INTERNACIONAL (SIN +, NI ESPACIOS)
     // Ejemplo México: 5215512345678
-    const tuNumeroWhatsApp = "524872586302"; // CAMBIA ESTO
+    const tuNumeroWhatsApp = "524872586302"; // <-- CAMBIA ESTO
 
     const mensaje = `
 Hola, soy ${nombre}.
@@ -58,7 +60,7 @@ Me interesa una DEMO de tus apps.
 📱 Mi WhatsApp: ${whatsapp}
 🧩 Demo que estaba viendo: ${demo.titulo}
 📝 Lo que me gustaría lograr: ${
-      comentarios || "por definir, pero quiero más info."
+      comentarios || "todavía definiendo, pero quiero más información."
     }
 
 ¿Me ayudas con una demo guiada y precios?`;
@@ -71,34 +73,38 @@ Me interesa una DEMO de tus apps.
 
   return (
     <>
-      {/* Estilos SOLO para esta página */}
+      {/* Estilos SOLO para esta landing de ventas */}
       <style>{`
         body {
           margin: 0;
           font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-          background: radial-gradient(circle at top, #1f2937, #020617 60%);
+          background: radial-gradient(circle at top, #020617 0%, #020617 45%, #020617 100%);
           color: #f9fafb;
         }
+
         .demo-wrap {
           max-width: 1100px;
           margin: 0 auto;
-          padding: 24px 16px 40px;
+          padding: 26px 16px 40px;
         }
+
         .demo-header {
           display: flex;
           justify-content: space-between;
           gap: 12px;
           align-items: center;
-          margin-bottom: 24px;
+          margin-bottom: 26px;
         }
+
         .demo-logo {
           display: flex;
           gap: 10px;
           align-items: center;
         }
+
         .demo-logo-circle {
-          width: 34px;
-          height: 34px;
+          width: 36px;
+          height: 36px;
           border-radius: 999px;
           background: radial-gradient(circle at 30% 30%, #ffffff, #22c55e 40%, #2563eb 100%);
           display: flex;
@@ -108,47 +114,26 @@ Me interesa una DEMO de tus apps.
           color: #020617;
           font-size: 18px;
         }
+
         .demo-logo-text-main {
           font-weight: 700;
           font-size: 18px;
         }
+
         .demo-logo-text-sub {
           font-size: 11px;
           color: #9ca3af;
           text-transform: uppercase;
           letter-spacing: 0.08em;
         }
+
         .demo-header-right {
           font-size: 11px;
           color: #9ca3af;
           text-align: right;
         }
-        .demo-badge {
-          display: inline-flex;
-          gap: 6px;
-          align-items: center;
-          padding: 4px 10px;
-          border-radius: 999px;
-          border: 1px solid rgba(148,163,184,0.5);
-          font-size: 11px;
-          margin-bottom: 10px;
-        }
-        .demo-dot {
-          width: 7px;
-          height: 7px;
-          border-radius: 999px;
-          background: #22c55e;
-          box-shadow: 0 0 12px rgba(34,197,94,0.7);
-        }
-        .demo-main {
-          display: grid;
-          grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
-          gap: 24px;
-        }
+
         @media (max-width: 900px) {
-          .demo-main {
-            grid-template-columns: minmax(0,1fr);
-          }
           .demo-header {
             flex-direction: column;
             align-items: flex-start;
@@ -157,65 +142,107 @@ Me interesa una DEMO de tus apps.
             text-align: left;
           }
         }
+
+        .demo-badge {
+          display: inline-flex;
+          gap: 6px;
+          align-items: center;
+          padding: 4px 11px;
+          border-radius: 999px;
+          border: 1px solid rgba(148,163,184,0.5);
+          font-size: 11px;
+          margin-bottom: 12px;
+          background: rgba(15,23,42,0.9);
+        }
+        .demo-dot {
+          width: 7px;
+          height: 7px;
+          border-radius: 999px;
+          background: #22c55e;
+          box-shadow: 0 0 12px rgba(34,197,94,0.7);
+        }
+
+        .demo-main {
+          display: grid;
+          grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+          gap: 26px;
+        }
+
+        @media (max-width: 900px) {
+          .demo-main {
+            grid-template-columns: minmax(0,1fr);
+          }
+        }
+
         .demo-title {
           font-size: clamp(26px, 4vw, 34px);
           font-weight: 800;
           letter-spacing: -0.02em;
-          margin-bottom: 10px;
+          margin-bottom: 12px;
         }
+
         .demo-highlight {
           background: linear-gradient(to right, #22c55e, #38bdf8, #818cf8);
           -webkit-background-clip: text;
           color: transparent;
         }
+
         .demo-subtitle {
           font-size: 14px;
           color: #9ca3af;
-          margin-bottom: 14px;
-          max-width: 500px;
+          margin-bottom: 16px;
+          max-width: 520px;
         }
+
         .demo-chips {
           display: flex;
           flex-wrap: wrap;
           gap: 8px;
           margin-bottom: 16px;
         }
+
         .demo-chip {
           font-size: 11px;
-          padding: 4px 9px;
+          padding: 4px 10px;
           border-radius: 999px;
           border: 1px solid rgba(55,65,81,0.9);
           background: rgba(15,23,42,0.95);
         }
+
         .demo-benefits {
           font-size: 12px;
           color: #9ca3af;
           display: grid;
-          gap: 8px;
-          margin-top: 8px;
+          gap: 7px;
+          margin-top: 4px;
         }
+
         .demo-benefit-item span {
           color: #e5e7eb;
           font-weight: 500;
         }
+
         .demo-note {
           margin-top: 10px;
           font-size: 11px;
           color: #9ca3af;
         }
+
         .demo-right-card {
-          background: radial-gradient(circle at top, rgba(37,99,235,0.25), #020617);
+          background: radial-gradient(circle at top, rgba(37,99,235,0.28), #020617);
           border-radius: 20px;
           border: 1px solid rgba(51,65,85,0.9);
           padding: 14px;
           box-shadow: 0 18px 30px rgba(15,23,42,0.9);
         }
+
         .demo-tabs {
           display: flex;
           flex-wrap: wrap;
           gap: 8px;
           margin-bottom: 12px;
         }
+
         .demo-tab-btn {
           font-size: 11px;
           padding: 5px 10px;
@@ -225,89 +252,135 @@ Me interesa una DEMO de tus apps.
           color: #9ca3af;
           cursor: pointer;
         }
+
         .demo-tab-btn.active {
-          border-color: rgba(129,140,248,0.9);
-          background: rgba(37,99,235,0.18);
+          border-color: rgba(129,140,248,0.95);
+          background: rgba(37,99,235,0.22);
           color: #e5e7eb;
         }
+
         .demo-preview {
           border-radius: 14px;
           border: 1px solid rgba(30,64,175,0.9);
           padding: 10px;
-          background: linear-gradient(135deg, #020617, #111827);
+          background: linear-gradient(135deg, #020617, #0b1220);
           margin-bottom: 12px;
           font-size: 12px;
         }
+
         .demo-preview-title {
           font-weight: 600;
           margin-bottom: 4px;
         }
+
         .demo-preview-line {
           font-size: 11px;
           color: #9ca3af;
           margin-bottom: 8px;
         }
+
         .demo-preview-list {
           display: flex;
           flex-wrap: wrap;
           gap: 6px;
-          margin-bottom: 8px;
+          margin-bottom: 10px;
         }
+
         .demo-pill-item {
           font-size: 11px;
           padding: 3px 8px;
           border-radius: 999px;
           border: 1px dashed rgba(148,163,184,0.6);
         }
+
         .demo-preview-footer {
           font-size: 11px;
           color: #9ca3af;
         }
+
         .demo-actions {
           display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-          margin: 10px 0 4px;
+          flex-direction: column;
+          gap: 4px;
+          margin: 12px 0 2px;
         }
-        .demo-link {
-          font-size: 11px;
-          padding: 5px 10px;
-          border-radius: 999px;
-          border: 1px solid rgba(148,163,184,0.7);
-          color: #e5e7eb;
-          text-decoration: none;
-        }
+
         .demo-link.main {
-          border-color: rgba(34,197,94,0.9);
+          font-size: 12px;
+          padding: 9px 14px;
+          border-radius: 999px;
+          border: none;
+          background: linear-gradient(135deg, #22c55e, #16a34a);
+          color: #022c22;
+          font-weight: 700;
+          text-align: center;
+          text-decoration: none;
+          box-shadow: 0 16px 30px rgba(22,163,74,0.45);
+          position: relative;
+        }
+
+        .demo-link.main:hover {
+          filter: brightness(1.02);
+        }
+
+        .demo-hand-hint {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 11px;
           color: #bbf7d0;
         }
+
+        .demo-hand-icon {
+          display: inline-flex;
+          width: 22px;
+          height: 22px;
+          border-radius: 999px;
+          align-items: center;
+          justify-content: center;
+          background: rgba(15,23,42,0.95);
+          border: 1px solid rgba(16,185,129,0.7);
+          box-shadow: 0 0 14px rgba(34,197,94,0.5);
+          animation: demo-hand-bounce 1.4s infinite;
+        }
+
+        @keyframes demo-hand-bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-3px); }
+        }
+
         .demo-form {
-          margin-top: 10px;
+          margin-top: 12px;
           border-radius: 16px;
           border: 1px solid rgba(55,65,81,0.9);
           padding: 12px;
-          background: radial-gradient(circle at top, rgba(56,189,248,0.2), #020617);
+          background: radial-gradient(circle at top, rgba(56,189,248,0.22), #020617);
         }
+
         .demo-form-title {
           font-size: 14px;
           font-weight: 600;
           margin-bottom: 4px;
         }
+
         .demo-form-sub {
           font-size: 12px;
           color: #9ca3af;
           margin-bottom: 10px;
         }
+
         .demo-form-row {
           display: flex;
           flex-direction: column;
           gap: 4px;
           margin-bottom: 8px;
         }
+
         .demo-form-row label {
           font-size: 11px;
           color: #9ca3af;
         }
+
         .demo-form-input,
         .demo-form-select,
         .demo-form-textarea {
@@ -319,22 +392,26 @@ Me interesa una DEMO de tus apps.
           color: #f9fafb;
           outline: none;
         }
+
         .demo-form-textarea {
           border-radius: 10px;
           resize: vertical;
           min-height: 55px;
         }
+
         .demo-form-input:focus,
         .demo-form-select:focus,
         .demo-form-textarea:focus {
           border-color: #60a5fa;
           box-shadow: 0 0 0 1px rgba(59,130,246,0.5);
         }
+
         .demo-form-hint {
           font-size: 11px;
           color: #9ca3af;
           margin-bottom: 6px;
         }
+
         .demo-btn {
           width: 100%;
           border-radius: 999px;
@@ -346,6 +423,7 @@ Me interesa una DEMO de tus apps.
           background: linear-gradient(135deg, #2563eb, #1d4ed8);
           color: #eff6ff;
         }
+
         .demo-form-foot {
           font-size: 11px;
           color: #9ca3af;
@@ -356,58 +434,62 @@ Me interesa una DEMO de tus apps.
       <div className="demo-wrap">
         <header className="demo-header">
           <div className="demo-logo">
+            {/* 🔧 LOGO EDITABLE:
+                Puedes reemplazar la bolita "G" por una imagen, por ejemplo:
+                <img src="/mi-logo.png" alt="Mi marca" style={{ width: 40, height: 40, borderRadius: "999px" }} />
+            */}
             <div className="demo-logo-circle">G</div>
             <div>
               <div className="demo-logo-text-main">Gabriel Cruz Apps</div>
-              <div className="demo-logo-text-sub">Demo en vivo para negocios</div>
+              <div className="demo-logo-text-sub">Apps y sitios web para negocios</div>
             </div>
           </div>
           <div className="demo-header-right">
-            <div>Link especial para mostrar la plataforma a tus clientes.</div>
-            <div>Usa esta URL solo como DEMO: /demo</div>
+            <div>Soluciones digitales para negocios que quieren vender más y verse profesionales.</div>
           </div>
         </header>
 
         <main className="demo-main">
-          {/* Columna izquierda: mensaje de venta */}
+          {/* Columna izquierda: mensaje comercial */}
           <section>
             <div className="demo-badge">
               <span className="demo-dot" />
-              <span>Demo lista para compartir por WhatsApp</span>
+              <span>Demo interactiva lista para compartir con tus clientes</span>
             </div>
+
             <h1 className="demo-title">
               Convierte curiosos en clientes con una{" "}
-              <span className="demo-highlight">demo guiada</span> de tus apps.
+              <span className="demo-highlight">app a la medida</span> de tu negocio.
             </h1>
+
             <p className="demo-subtitle">
-              Manda este link a tus prospectos. Ellos prueban la app como
-              clientes, te dejan sus datos y tú solo entras a cerrar la venta.
+              Esta demo está pensada para todo tipo de negocios: restaurantes, cafeterías,
+              gimnasios, hoteles, clínicas, tiendas en línea y más. Queremos entender tus
+              necesidades y mostrarte cómo una app puede ayudarte a vender mejor y trabajar
+              más fácil.
             </p>
 
             <div className="demo-chips">
-              <div className="demo-chip">Vista solo modo cliente</div>
-              <div className="demo-chip">Optimizada para celular</div>
-              <div className="demo-chip">Formulario directo a WhatsApp</div>
+              <div className="demo-chip">Más ventas, menos complicaciones</div>
+              <div className="demo-chip">Tus clientes piden directo desde su celular</div>
+              <div className="demo-chip">Imagen profesional para tu marca</div>
             </div>
 
             <div className="demo-benefits">
               <div className="demo-benefit-item">
-                <span>1. </span>Mandas un solo link:{" "}
-                <strong>tudominio.vercel.app/demo</strong>
+                <span>1. </span>Entras a esta demo y eliges el tipo de negocio que se parece al tuyo.
               </div>
               <div className="demo-benefit-item">
-                <span>2. </span>El prospecto prueba la demo (restaurante, gym, hotel,
-                e-commerce…)
+                <span>2. </span>Ves cómo se vería tu app funcionando para tus clientes.
               </div>
               <div className="demo-benefit-item">
-                <span>3. </span>Te escribe por WhatsApp con un mensaje armado y tú
-                cierras la venta.
+                <span>3. </span>Dejas tus datos y te contactamos por WhatsApp con una propuesta hecha a tu medida.
               </div>
             </div>
 
             <div className="demo-note">
-              Ideal para restaurantes, dark kitchens, gimnasios, hoteles,
-              cafeterías, clínicas y tiendas online.
+              Funciona para restaurantes, cafeterías, dark kitchens, gimnasios, hoteles,
+              clínicas, tiendas online <strong>y muchos tipos de negocio más.</strong>
             </div>
           </section>
 
@@ -424,9 +506,7 @@ Me interesa una DEMO de tus apps.
                 🍽 Restaurante
               </button>
               <button
-                className={
-                  "demo-tab-btn " + (activeDemo === "gym" ? "active" : "")
-                }
+                className={"demo-tab-btn " + (activeDemo === "gym" ? "active" : "")}
                 onClick={() => setActiveDemo("gym")}
               >
                 💪 Gym
@@ -440,9 +520,7 @@ Me interesa una DEMO de tus apps.
                 🏨 Hotel
               </button>
               <button
-                className={
-                  "demo-tab-btn " + (activeDemo === "ecom" ? "active" : "")
-                }
+                className={"demo-tab-btn " + (activeDemo === "ecom" ? "active" : "")}
                 onClick={() => setActiveDemo("ecom")}
               >
                 🛒 E-commerce
@@ -460,8 +538,7 @@ Me interesa una DEMO de tus apps.
                 ))}
               </div>
               <div className="demo-preview-footer">
-                Así vería tu cliente la app (sin panel administrador ni cosas
-                técnicas).
+                Así verán tus clientes la app: sencilla, clara y sin paneles complicados.
               </div>
 
               <div className="demo-actions">
@@ -471,17 +548,22 @@ Me interesa una DEMO de tus apps.
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Probar demo en vivo
+                  🚀 Probar demo en vivo
                 </a>
+                <span className="demo-hand-hint">
+                  <span className="demo-hand-icon">👆</span>
+                  Toca este botón para ver la demo funcionando.
+                </span>
               </div>
             </div>
 
             <form className="demo-form" onSubmit={handleSubmit}>
               <div className="demo-form-title">
-                Recibe tu demo adaptada a tu negocio
+                ¿Quieres una propuesta pensada en tu negocio?
               </div>
               <div className="demo-form-sub">
-                Llena 3 datos y se abrirá WhatsApp con un mensaje automático.
+                Déjanos tus datos y te contactamos por WhatsApp con una demo guiada
+                y opciones de paquete según tus necesidades.
               </div>
 
               <div className="demo-form-row">
@@ -540,20 +622,20 @@ Me interesa una DEMO de tus apps.
 
               <div className="demo-form-row">
                 <label htmlFor="comentarios">
-                  ¿Qué te gustaría lograr con la app?{" "}
+                  Cuéntanos brevemente qué te gustaría mejorar{" "}
                   <span style={{ opacity: 0.6 }}>(opcional)</span>
                 </label>
                 <textarea
                   id="comentarios"
                   name="comentarios"
                   className="demo-form-textarea"
-                  placeholder="Ej. tomar pedidos por WhatsApp, controlar repartos, vender más sin apps de terceros…"
+                  placeholder="Ej. recibir pedidos por WhatsApp, organizar entregas, vender más sin depender de plataformas, etc."
                 />
               </div>
 
               <div className="demo-form-hint">
-                Al enviar, se abrirá WhatsApp para confirmar tu interés de
-                inmediato.
+                Al enviar, se abrirá WhatsApp con un mensaje listo para que solo tengas
+                que presionar “enviar”.
               </div>
 
               <button type="submit" className="demo-btn">
@@ -561,7 +643,8 @@ Me interesa una DEMO de tus apps.
               </button>
 
               <div className="demo-form-foot">
-                Respuesta típica en menos de unas horas (horario MX).
+                Respondemos normalmente en pocas horas (horario México).  
+                Sin spam: solo información útil y opciones para tu negocio.
               </div>
             </form>
           </section>
