@@ -2,6 +2,7 @@
 // App.jsx — Plataforma Multi-Restaurante
 // ===============================
 
+import DemoLanding from "./DemoLanding";
 import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "./supabaseClient";
 // Crea un id de restaurante a partir del nombre, por ejemplo "NUBIA´S SNACK" -> "nubias-snack"
