@@ -1856,6 +1856,15 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
     0
   );
 
+  // 👉 nuevo: función para hacer scroll hacia "Tu pedido"
+  const handleScrollToPedido = () => {
+    if (typeof document === "undefined") return;
+    const el = document.getElementById("tu-pedido-panel");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
   return (
     <div
       style={{
@@ -1883,12 +1892,13 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
             width: 44,
             height: 44,
             borderRadius: 16,
-            background: "rgba(15,23,42,0.9)",
-            border: "1px solid rgba(148,163,184,0.6)",
+            background: "radial-gradient(circle at top, #22c55e, #052e16)",
+            border: "1px solid rgba(74,222,128,0.7)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             overflow: "hidden",
+            boxShadow: "0 10px 30px rgba(22,163,74,0.65)",
           }}
         >
           {r.logo ? (
@@ -1980,7 +1990,7 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
                   padding: "4px 9px",
                   border: "1px solid",
                   borderColor: active ? themePrimary : "rgba(148,163,184,0.5)",
-                  background: active ? "rgba(16,185,129,0.2)" : "transparent",
+                  background: active ? "rgba(16,185,129,0.22)" : "transparent",
                   color: active ? "#bbf7d0" : "#e5e7eb",
                   fontSize: 11,
                   cursor: "pointer",
@@ -2196,6 +2206,7 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
 
         {/* PANEL "TU PEDIDO" */}
         <div
+          id="tu-pedido-panel" // <- ID para hacer scroll
           style={{
             borderRadius: 18,
             background:
@@ -2386,12 +2397,13 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
             style={{
               borderRadius: 999,
               padding: "8px 12px",
-              background: "linear-gradient(90deg,#166534,#22c55e)",
+              background:
+                "linear-gradient(90deg, #16a34a, #22c55e, #4ade80)",
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              boxShadow: "0 18px 40px rgba(22,163,74,0.75)",
-              border: "1px solid rgba(22,163,74,0.9)",
+              boxShadow: "0 18px 40px rgba(22,163,74,0.85)",
+              border: "1px solid rgba(22,163,74,0.95)",
             }}
           >
             <div
@@ -2411,23 +2423,21 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
               </span>
             </div>
 
-            {onOpenCheckout && (
-              <button
-                type="button"
-                onClick={onOpenCheckout}
-                style={{
-                  ...BTN,
-                  padding: "6px 10px",
-                  fontSize: 11,
-                  background: "#022c22",
-                  borderColor: "rgba(15,118,110,0.9)",
-                  color: "#ecfdf5",
-                  boxShadow: "0 10px 25px rgba(15,23,42,0.8)",
-                }}
-              >
-                Ver pedido
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleScrollToPedido} // 👈 ahora solo baja al panel
+              style={{
+                ...BTN,
+                padding: "6px 10px",
+                fontSize: 11,
+                background: "#022c22",
+                borderColor: "rgba(15,118,110,0.9)",
+                color: "#ecfdf5",
+                boxShadow: "0 10px 25px rgba(15,23,42,0.9)",
+              }}
+            >
+              Ver pedido
+            </button>
           </div>
         </div>
       )}
