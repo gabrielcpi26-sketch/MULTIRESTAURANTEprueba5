@@ -1,7 +1,5 @@
 // src/DemoLanding.jsx
 import React, { useState } from "react";
-
-import DemoLanding from "./DemoLanding";
 const DemoLanding = () => {
   const [activeDemo, setActiveDemo] = useState("restaurante");
 
