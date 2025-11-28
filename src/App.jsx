@@ -1845,18 +1845,16 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
   // 👇 detectar si el usuario está en móvil
   const isMobile =
     typeof window !== "undefined" && window.innerWidth < 768;
-  const trustPillStyle = {
-    display: "inline-flex",
-    alignItems: "center",
-    padding: "3px 8px",
-    borderRadius: 999,
-    fontSize: 10,
-    color: "#e5e7eb",
-    background: "rgba(15,23,42,0.7)",
-    border: "1px solid rgba(148,163,184,0.45)",
-    whiteSpace: "nowrap",
-  };
 
+  // Totales para la barrita flotante
+  const totalItems = (cart || []).reduce(
+    (sum, line) => sum + (line.qty || 0),
+    0
+  );
+  const totalAmount = (cart || []).reduce(
+    (sum, line) => sum + (line.total || 0),
+    0
+  );
 
   return (
     <div
@@ -1870,32 +1868,27 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
         display: "flex",
         flexDirection: "column",
         gap: 10,
+        position: "relative",
       }}
     >
-     
-
-
       <div
         style={{
           display: "flex",
-          gap: 12,
-          alignItems: "flex-start",
+          gap: 10,
+          alignItems: "center",
         }}
       >
-        {/* LOGO */}
         <div
           style={{
-            width: 64,
-            height: 64,
-            borderRadius: 20,
-            background:
-              "radial-gradient(circle at top, rgba(15,23,42,0.95), rgba(15,23,42,0.85))",
-            border: "1px solid rgba(148,163,184,0.7)",
+            width: 44,
+            height: 44,
+            borderRadius: 16,
+            background: "rgba(15,23,42,0.9)",
+            border: "1px solid rgba(148,163,184,0.6)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             overflow: "hidden",
-            boxShadow: "0 8px 20px rgba(0,0,0,0.6)",
           }}
         >
           {r.logo ? (
@@ -1909,11 +1902,9 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
               }}
             />
           ) : (
-            <span style={{ fontSize: 26 }}>🍽️</span>
+            <span style={{ fontSize: 20 }}>🍽️</span>
           )}
         </div>
-
-        {/* TEXTO HERO */}
         <div style={{ flex: 1 }}>
           <div
             style={{
@@ -1925,7 +1916,7 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
             {r.nombre || "Restaurante sin nombre"}
           </div>
 
-          {/* MENSAJE PERSONALIZADO DESDE AJUSTES (SI LO USAS) */}
+          {/* MENSAJE PERSONALIZADO DESDE AJUSTES */}
           {r.mensajeBienvenida && (
             <div
               style={{
@@ -1945,50 +1936,19 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
             </div>
           )}
 
-          {/* TEXTO DE ORDEN RÁPIDA */}
-          <div
-            style={{
-              marginTop: 2,
-              fontSize: 12,
-              color: "#f9fafb",
-              fontWeight: 600,
-            }}
-          >
-            🍔 ¡Ordena en 2 clics y recibe en minutos!
-          </div>
           <div
             style={{
               fontSize: 11,
               color: "#9ca3af",
-              marginBottom: 6,
             }}
           >
-            Sin llamadas, sin filas — solo toca y disfruta.
-          </div>
-
-          {/* LÍNEA DE CONFIANZA (PASTILLAS) */}
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 6,
-              marginTop: 2,
-            }}
-          >
-            <span style={trustPillStyle}>✅ Más de 120 pedidos esta semana</span>
-            <span style={trustPillStyle}>⭐ Clientes felices: 4.9/5</span>
-            <span style={trustPillStyle}>
-              📍 Restaurante local favorito en{" "}
-              {r.ciudad || "tu ciudad"}
-            </span>
+            Explora el menú, personaliza tu orden y envíala por WhatsApp.
           </div>
         </div>
-
         <div>
           <Badge tone="success">Online</Badge>
         </div>
       </div>
-
 
       <div
         style={{
@@ -2409,10 +2369,71 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
           </div>
         </div>
       </div>
+
+      {/* 🔹 BARRA FLOTANTE "TU PEDIDO" EN MÓVIL */}
+      {isMobile && cart && cart.length > 0 && (
+        <div
+          style={{
+            position: "fixed",
+            left: 0,
+            right: 0,
+            bottom: 10,
+            padding: "0 12px",
+            zIndex: 999,
+          }}
+        >
+          <div
+            style={{
+              borderRadius: 999,
+              padding: "8px 12px",
+              background: "linear-gradient(90deg,#166534,#22c55e)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              boxShadow: "0 18px 40px rgba(22,163,74,0.75)",
+              border: "1px solid rgba(22,163,74,0.9)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 12,
+                color: "#ecfdf5",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <span>🛒</span>
+              <span>
+                {totalItems}{" "}
+                {totalItems === 1 ? "artículo" : "artículos"} ·{" "}
+                <strong>{currency(totalAmount)}</strong>
+              </span>
+            </div>
+
+            {onOpenCheckout && (
+              <button
+                type="button"
+                onClick={onOpenCheckout}
+                style={{
+                  ...BTN,
+                  padding: "6px 10px",
+                  fontSize: 11,
+                  background: "#022c22",
+                  borderColor: "rgba(15,118,110,0.9)",
+                  color: "#ecfdf5",
+                  boxShadow: "0 10px 25px rgba(15,23,42,0.8)",
+                }}
+              >
+                Ver pedido
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
 
 // ===============================
 // CHECKOUT MODAL (PANTALLA CLIENTE RESUMEN + PAGO)
