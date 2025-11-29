@@ -292,91 +292,93 @@ function useStore() {
   const [tab, setTab] = useState("menu");
   const [loading, setLoading] = useState(true);
 
-  // ==============
-  // CARGA INICIAL
-  // ==============
-  useEffect(() => {
-    const load = async () => {
-      try {
-        // 1) Intentar leer desde Supabase
-        const { data: restRows, error: restError } = await supabase
-          .from("restaurants")
-          .select("*");
+// ==============
+// CARGA INICIAL
+// ==============
+useEffect(() => {
+  const load = async () => {
+    try {
+      // 1) Intentar leer desde Supabase
+      const { data: restRows, error: restError } = await supabase
+        .from("restaurants")
+        .select("*");
 
-        if (restError) {
-          console.error("Error cargando restaurantes desde Supabase:", restError);
-          throw restError;
-        }
+      if (restError) {
+        console.error(
+          "Error cargando restaurantes desde Supabase:",
+          restError
+        );
+        throw restError;
+      }
 
-        let result = [];
+      let result = [];
 
-        if (restRows && restRows.length > 0) {
-          const restIds = restRows.map((r) => r.id);
+      if (restRows && restRows.length > 0) {
+        const restIds = restRows.map((r) => r.id);
 
-          // 2) Leer los platillos de menu_items
-          let menuByRest = {};
-          try {
-            const { data: menuRows, error: menuError } = await supabase
-              .from("menu_items")
-              .select("*")
-              .in("restaurant_id", restIds);
+        // 2) Leer los platillos de menu_items
+        let menuByRest = {};
+        try {
+          const { data: menuRows, error: menuError } = await supabase
+            .from("menu_items")
+            .select("*")
+            .in("restaurant_id", restIds);
 
-            if (menuError) {
-              console.error("Error cargando menú desde Supabase:", menuError);
-            } else {
-              (menuRows || []).forEach((m) => {
-                const rId = m.restaurant_id;
-                if (!menuByRest[rId]) menuByRest[rId] = [];
-                menuByRest[rId].push({
-                  id: m.id,
-                  nombre: m.nombre || "",
-                  categoria: m.categoria || "Comidas",
-                  precio: Number(m.precio) || 0,
-                  costo: Number(m.costo) || 0,
-                  stock: m.stock ?? 0,
-                  foto: m.foto || "",
-                  ingredientesBase: m.ingredientes_base || [],
-                  extras: m.extras || [],
-                  activo: m.activo !== false,
-                });
+          if (menuError) {
+            console.error("Error cargando menú desde Supabase:", menuError);
+          } else {
+            (menuRows || []).forEach((m) => {
+              const rId = m.restaurant_id;
+              if (!menuByRest[rId]) menuByRest[rId] = [];
+              menuByRest[rId].push({
+                id: m.id,
+                nombre: m.nombre || "",
+                categoria: m.categoria || "Comidas",
+                precio: Number(m.precio) || 0,
+                costo: Number(m.costo) || 0,
+                stock: m.stock ?? 0,
+                foto: m.foto || "",
+                ingredientesBase: m.ingredientes_base || [],
+                extras: m.extras || [],
+                activo: m.activo !== false,
               });
-            }
-          } catch (e) {
-            console.error("Error general cargando menú:", e);
+            });
           }
-
-          // 3) Mapear filas de restaurants al formato que usa la app
-          result = restRows.map((row) => ({
-            id: row.id,
-            nombre: row.nombre || "Sin nombre",
-            direccion: row.direccion || "",
-            whatsapp: row.whatsapp || "",
-            paymentLink: row.payment_link || "",
-            zonas: {
-              lat: row.zona_lat || 0,
-              lon: row.zona_lon || 0,
-              feePerKm: row.zona_fee_per_km || 0,
-            },
-            menu: menuByRest[row.id] || [],
-            categoryIcons: row.category_icons || DEFAULT_ICONS,
-            ventas: [],
-            logo: row.logo || "",
-            theme: {
-              primary: row.theme_primary || EMERALD,
-              secondary: row.theme_secondary || EMERALD_DARK,
-            },
-            testimonios: row.testimonios || [],
-            transferenciaBanco: row.transferencia_banco || "",
-            transferenciaCuenta: row.transferencia_cuenta || "",
-            transferenciaClabe: row.transferencia_clabe || "",
-            transferenciaTitular: row.transferencia_titular || "",
-            mensajeBienvenida: row.mensaje_bienvenida || "",
-          }));
+        } catch (e) {
+          console.error("Error general cargando menú:", e);
         }
 
-        // Si Supabase estaba vacío, usamos demo
-    
-  if (!result || result.length === 0) {
+        // 3) Mapear filas de restaurants al formato que usa la app
+        result = restRows.map((row) => ({
+          id: row.id,
+          nombre: row.nombre || "Sin nombre",
+          direccion: row.direccion || "",
+          whatsapp: row.whatsapp || "",
+          paymentLink: row.payment_link || "",
+          zonas: {
+            lat: row.zona_lat || 0,
+            lon: row.zona_lon || 0,
+            feePerKm: row.zona_fee_per_km || 0,
+          },
+          menu: menuByRest[row.id] || [],
+          categoryIcons: row.category_icons || DEFAULT_ICONS,
+          ventas: [],
+          logo: row.logo || "",
+          theme: {
+            primary: row.theme_primary || EMERALD,
+            secondary: row.theme_secondary || EMERALD_DARK,
+          },
+          testimonios: row.testimonios || [],
+          transferenciaBanco: row.transferencia_banco || "",
+          transferenciaCuenta: row.transferencia_cuenta || "",
+          transferenciaClabe: row.transferencia_clabe || "",
+          transferenciaTitular: row.transferencia_titular || "",
+          mensajeBienvenida: row.mensaje_bienvenida || "",
+        }));
+      }
+
+      // 4) Si Supabase estaba vacío, usamos demo
+      if (!result || result.length === 0) {
         const demoId = "demo-rest";
         result = [
           {
@@ -401,69 +403,66 @@ function useStore() {
         ];
       }
 
+      // 5) Guardar en estado (y localStorage)
       setRestaurantes(result);
-        setActiveRest(result[0]?.id || null);
+      setActiveRest(result[0]?.id || null);
 
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(
+          STORAGE_RESTAURANTES,
+          JSON.stringify(result)
+        );
+      }
+    } catch (e) {
+      console.warn("Fallo Supabase, usando localStorage / demo:", e);
+
+      // Intentar leer respaldo de localStorage
+      try {
         if (typeof window !== "undefined") {
-          window.localStorage.setItem(
-            STORAGE_RESTAURANTES,
-            JSON.stringify(result)
-          );
-        }
-      } catch (e) {
-        console.warn("Fallo Supabase, usando localStorage / demo:", e);
-
-        if (view === "admin") {
-  const saved = localStorage.getItem("admin-auth");
-  if (saved !== ADMIN_PASSWORD) {
-    const pass = prompt("Ingresa la contraseña de administrador:");
-    if (pass !== ADMIN_PASSWORD) {
-      alert("Contraseña incorrecta");
-      return <div style={{ padding: 20 }}>Acceso denegado</div>;
-    }
-    localStorage.setItem("admin-auth", ADMIN_PASSWORD);
-  }
-
-  return <AdminPanel ...props />;
-}
-
-            }
-          } catch (err) {
-            console.warn("Error leyendo STORAGE_RESTAURANTES:", err);
+          const saved = window.localStorage.getItem(STORAGE_RESTAURANTES);
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            setRestaurantes(parsed);
+            setActiveRest(parsed[0]?.id || null);
+            return;
           }
         }
-
-        const demoId = "demo-rest";
-        const demo = [
-          {
-            id: demoId,
-            nombre: "Mi restaurante demo",
-            direccion: "Calle Sabor #123, Ciudad",
-            whatsapp: "",
-            paymentLink: "",
-            zonas: { lat: 0, lon: 0, feePerKm: 0 },
-            menu: [],
-            categoryIcons: DEFAULT_ICONS,
-            ventas: [],
-            logo: "",
-            theme: { primary: EMERALD, secondary: EMERALD_DARK },
-            testimonios: [],
-            transferenciaBanco: "",
-            transferenciaCuenta: "",
-            transferenciaClabe: "",
-            transferenciaTitular: "",
-            mensajeBienvenida: "",
-          },
-        ];
-        setRestaurantes(demo);
-        setActiveRest(demoId);
-      } finally {
-        setLoading(false);
+      } catch (err) {
+        console.warn("Error leyendo STORAGE_RESTAURANTES:", err);
       }
-    };
 
-    load();
-  }, []);
+      // Si tampoco hay localStorage, usamos demo directo
+      const demoId = "demo-rest";
+      const demo = [
+        {
+          id: demoId,
+          nombre: "Mi restaurante demo",
+          direccion: "Calle Sabor #123, Ciudad",
+          whatsapp: "",
+          paymentLink: "",
+          zonas: { lat: 0, lon: 0, feePerKm: 0 },
+          menu: [],
+          categoryIcons: DEFAULT_ICONS,
+          ventas: [],
+          logo: "",
+          theme: { primary: EMERALD, secondary: EMERALD_DARK },
+          testimonios: [],
+          transferenciaBanco: "",
+          transferenciaCuenta: "",
+          transferenciaClabe: "",
+          transferenciaTitular: "",
+          mensajeBienvenida: "",
+        },
+      ];
+      setRestaurantes(demo);
+      setActiveRest(demoId);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  load();
+}, []);
 
   // Guardar respaldo en localStorage ante cualquier cambio
   useEffect(() => {
