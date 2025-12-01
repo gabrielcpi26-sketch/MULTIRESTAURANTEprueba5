@@ -3850,6 +3850,9 @@ function SettingsPanel({ r, store }) {
   );
 }
 
+// 🔐 CONTRASEÑA MASTER (solo tú, Diana)
+const MASTER_PASSWORD = "22110285Regina@";
+
 // ===============================
 // APP PRINCIPAL
 // ===============================
@@ -3868,6 +3871,7 @@ function App() {
   const [cart, setCart] = useState([]);
   const [customItem, setCustomItem] = useState(null);
   const [checkoutCart, setCheckoutCart] = useState(null);
+  const [masterOk, setMasterOk] = useState(false); // 🔐 NUEVO
 
   // Construye el link público de menú para un restaurante
   const getClientUrlForRestaurant = (restaurantId) => {
@@ -3910,30 +3914,42 @@ function App() {
   let isPublicClient = false;
   let publicRestId = null;
   let isDemo = false;
+  let adminParam = null;
 
   if (typeof window !== "undefined") {
     const sp = new URLSearchParams(window.location.search);
-    isPublicClient = sp.get("view") === "cliente";
+    const view = sp.get("view");
     publicRestId = sp.get("rest");
-    // DEMO: /demo o ?demo=1
+    adminParam = sp.get("admin");
+
+    // Vista cliente (cuando mandas el link al comensal)
+    isPublicClient = view === "cliente" || !!publicRestId;
+
+    // Ruta demo
     isDemo =
-      window.location.pathname === "/demo" || sp.get("demo") === "1";
+      window.location.pathname === "/demo" || view === "demo";
   }
 
-  // Restaurante que verá el cliente cuando entra con ?view=cliente
+  const hasAdminParam = !!adminParam;                 // ?admin=rest-id
+  const isAdminArea = !isPublicClient && !isDemo;     // zona de administración
+  const needsMasterPassword = isAdminArea && !hasAdminParam;
+  // ======================
+  // RESTAURANTE ACTUAL & VISTA PÚBLICA
+  // ======================
+  const currentRestaurant =
+    restaurantes.find((rest) => rest.id === activeRest) || null;
+
   let rPublic = null;
   if (isPublicClient) {
-    if (publicRestId) {
-      rPublic =
-        restaurantes.find((x) => x.id === publicRestId) ||
-        restaurantes[0] ||
-        null;
-    } else {
-      rPublic = restaurantes[0] || null;
-    }
+    const targetId = publicRestId || activeRest;
+    rPublic =
+      restaurantes.find((rest) => rest.id === targetId) || currentRestaurant;
   }
 
-  const currentRestaurant = isPublicClient ? rPublic : r;
+  // 👉 needsMasterPassword SOLO es true cuando:
+  //    - NO es vista cliente
+  //    - NO es demo
+  //    - NO viene ?admin= (o sea: tu panel general)
 
   // ================
   // HANDLERS CARRITO
@@ -3988,6 +4004,44 @@ function App() {
     setCart([]);
     setCheckoutCart(null);
   };
+
+  // 🔐 LOGIN MASTER (solo para Diana, en panel general)
+  if (needsMasterPassword && !masterOk) {
+    if (typeof window !== "undefined") {
+      const saved = window.localStorage.getItem("master-auth");
+
+      if (saved === MASTER_PASSWORD) {
+        setMasterOk(true);
+      } else {
+        const pass = window.prompt("Contraseña master:");
+        if (pass === MASTER_PASSWORD) {
+          window.localStorage.setItem("master-auth", MASTER_PASSWORD);
+          setMasterOk(true);
+        } else {
+          alert("Contraseña incorrecta");
+          return (
+            <div
+              style={{
+                padding: 24,
+                minHeight: "100vh",
+                background: "#020617",
+                color: "#e5e7eb",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                textAlign: "center",
+              }}
+            >
+              Acceso denegado. Recarga la página para intentar de nuevo.
+            </div>
+          );
+        }
+      }
+    }
+
+    // mientras resuelve el login, no pintamos nada
+    return null;
+  }
 
   // ======================
   // MODO DEMO (SOLO CLIENTE)
@@ -4245,3 +4299,4 @@ function App() {
 }
 
 export default App;
+
