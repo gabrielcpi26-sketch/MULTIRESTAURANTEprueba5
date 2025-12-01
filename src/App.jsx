@@ -799,7 +799,7 @@ function RestaurantSelector({
   setActiveRest,
   addRestaurant,
 }) {
-  // 1) Leer ?admin= de la URL (ej: ?admin=gabriel-rest)
+  // 1) Leer ?admin= de la URL (ej: ?admin=nubia-s-snack)
   let adminRestId = null;
   if (typeof window !== "undefined") {
     const params = new URLSearchParams(window.location.search);
@@ -809,7 +809,7 @@ function RestaurantSelector({
   // 2) Filtrar restaurantes visibles según el admin
   const visibles = useMemo(() => {
     if (!adminRestId) {
-      // Sin ?admin= → se muestran todos (modo demo / tú como dueña)
+      // Sin ?admin= → se muestran todos (tú como master / demo)
       return restaurantes;
     }
     // Con ?admin= → solo el restaurante de ese id
@@ -819,6 +819,9 @@ function RestaurantSelector({
   // Si por alguna razón no encuentra coincidencias, caemos de nuevo en todos
   const listaRestaurantes =
     visibles && visibles.length > 0 ? visibles : restaurantes;
+
+  // 3) Solo el MASTER puede agregar restaurantes (cuando NO hay ?admin=)
+  const canAddRestaurant = !adminRestId;
 
   return (
     <Container style={{ paddingTop: 0, paddingBottom: 10 }}>
@@ -854,17 +857,21 @@ function RestaurantSelector({
                   </span>
                 </Chip>
               ))}
-              <Chip
-                onClick={addRestaurant}
-                style={{
-                  borderStyle: "dashed",
-                  borderColor: "#d4d4d8",
-                  background: "#f9fafb",
-                  color: "#4b5563",
-                }}
-              >
-                + Agregar restaurante
-              </Chip>
+
+              {/* 👇 ESTE BOTÓN SOLO LO VE EL MASTER (sin ?admin= en la URL) */}
+              {canAddRestaurant && (
+                <Chip
+                  onClick={addRestaurant}
+                  style={{
+                    borderStyle: "dashed",
+                    borderColor: "#d4d4d8",
+                    background: "#f9fafb",
+                    color: "#4b5563",
+                  }}
+                >
+                  + Agregar restaurante
+                </Chip>
+              )}
             </div>
           </div>
           <div
@@ -883,6 +890,8 @@ function RestaurantSelector({
     </Container>
   );
 }
+
+
 
 
 function TabsBar({ tab, setTab }) {
