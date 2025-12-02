@@ -532,6 +532,52 @@ useEffect(() => {
 
   // Guardar respaldo en localStorage ante cualquier cambio
   useEffect(() => {
+ // Canal Realtime para INSERTs en la tabla "ventas"
+  const channel = supabase
+    .channel("ventas-realtime")
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "ventas" },
+      (payload) => {
+        const row = payload.new;
+        if (!row) return;
+        const restId = row.restaurant_id;
+        if (!restId) return;
+
+        setRestaurantes((prev) =>
+          prev.map((rr) => {
+            if (rr.id !== restId) return rr;
+
+            const nuevaVenta = {
+              id: row.id,
+              fecha: row.fecha || row.created_at,
+              items: row.items || [],
+              metodoPago: row.metodo_pago || "desconocido",
+              total: Number(row.total) || 0,
+              estadoPago: row.estado_pago || "pendiente",
+            };
+
+            // Evitar duplicados si por alguna razón ya existe
+            const yaExiste = (rr.ventas || []).some(
+              (v) => v.id === nuevaVenta.id
+            );
+            if (yaExiste) return rr;
+
+            return {
+              ...rr,
+              ventas: [...(rr.ventas || []), nuevaVenta],
+            };
+          })
+        );
+      }
+    )
+    .subscribe();
+
+  // Limpieza al desmontar
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, []);
     if (typeof window === "undefined") return;
     try {
       window.localStorage.setItem(
