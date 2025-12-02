@@ -763,23 +763,6 @@ useEffect(() => {
   };
 
 
-      // 2) Guardar inmediatamente en localStorage
-      try {
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem(
-            STORAGE_RESTAURANTES,
-            JSON.stringify(updated)
-          );
-        }
-      } catch (e) {
-        console.warn("No se pudo guardar ventas en localStorage:", e);
-      }
-
-      return updated;
-    });
-  };
-
-
   const updateSaleStatus = (restId, saleId, estadoPago) => {
     setRestaurantes((prev) =>
       prev.map((rr) => {
