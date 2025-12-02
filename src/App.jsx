@@ -377,7 +377,44 @@ useEffect(() => {
         }));
       }
 
-      // 4) Si Supabase estaba vacío, usamos demo
+      
+      // 3.1) Cargar ventas desde Supabase y vincularlas a cada restaurante
+      try {
+        const { data: salesRows, error: salesError } = await supabase
+          .from("ventas")
+          .select("*");
+
+        if (salesError) {
+          console.warn("Error cargando ventas desde Supabase:", salesError);
+        } else if (Array.isArray(salesRows)) {
+          const ventasPorRest = {};
+
+          salesRows.forEach((row) => {
+            const rid = row.restaurant_id;
+            if (!rid) return;
+            if (!ventasPorRest[rid]) ventasPorRest[rid] = [];
+
+            ventasPorRest[rid].push({
+              id: row.id,
+              fecha: row.fecha || row.created_at,
+              items: row.items || [],
+              metodoPago: row.metodo_pago || "desconocido",
+              total: Number(row.total) || 0,
+              estadoPago: row.estado_pago || "pendiente",
+            });
+          });
+
+          result = result.map((rest) => ({
+            ...rest,
+            ventas: ventasPorRest[rest.id] || rest.ventas || [],
+          }));
+        }
+      } catch (ventasErr) {
+        console.warn("Error inesperado cargando ventas Supabase:", ventasErr);
+      }
+
+
+// 4) Si Supabase estaba vacío, usamos demo
       if (!result || result.length === 0) {
         const demoId = "demo-rest";
         result = [
@@ -403,7 +440,36 @@ useEffect(() => {
         ];
       }
 
-      // 5) Guardar en estado (y localStorage)
+      // 🔁 Recuperar ventas previas desde localStorage (si existen)
+      if (typeof window !== "undefined") {
+        try {
+          const savedStr = window.localStorage.getItem(STORAGE_RESTAURANTES);
+          if (savedStr) {
+            const savedArr = JSON.parse(savedStr);
+            if (Array.isArray(savedArr)) {
+              result = result.map((rest) => {
+                               const previo = savedArr.find((x) => x.id === rest.id);
+                if (
+                  previo &&
+                  Array.isArray(previo.ventas) &&
+                  previo.ventas.length > 0 &&
+                  (!rest.ventas || rest.ventas.length === 0)
+                ) {
+                  return { ...rest, ventas: previo.ventas };
+                }
+
+                return rest;
+              });
+            }
+          }
+        } catch (mergeErr) {
+          console.warn("No se pudieron recuperar ventas previas:", mergeErr);
+        }
+      }
+    
+
+
+  // 5) Guardar en estado (y localStorage)
       setRestaurantes(result);
       setActiveRest(result[0]?.id || null);
 
@@ -664,12 +730,55 @@ useEffect(() => {
       total,
       estadoPago: "pendiente",
     };
+
+    // 1) Actualizar en memoria (para que el admin vea la venta al instante)
     setRestaurantes((prev) =>
       prev.map((rr) =>
-        rr.id === restId ? { ...rr, ventas: [...(rr.ventas || []), venta] } : rr
+        rr.id === restId
+          ? { ...rr, ventas: [...(rr.ventas || []), venta] }
+          : rr
       )
     );
+
+    // 2) Guardar también en Supabase (ventas centralizadas)
+    supabase
+      .from("ventas")
+      .insert({
+        id: venta.id,
+        restaurant_id: restId,
+        fecha: venta.fecha,
+        items: venta.items,
+        metodo_pago: venta.metodoPago,
+        total: venta.total,
+        estado_pago: venta.estadoPago,
+      })
+      .then(({ error }) => {
+        if (error) {
+          console.warn("No se pudo guardar venta en Supabase:", error);
+        }
+      })
+      .catch((e) => {
+        console.warn("Error inesperado guardando venta en Supabase:", e);
+      });
   };
+
+
+      // 2) Guardar inmediatamente en localStorage
+      try {
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(
+            STORAGE_RESTAURANTES,
+            JSON.stringify(updated)
+          );
+        }
+      } catch (e) {
+        console.warn("No se pudo guardar ventas en localStorage:", e);
+      }
+
+      return updated;
+    });
+  };
+
 
   const updateSaleStatus = (restId, saleId, estadoPago) => {
     setRestaurantes((prev) =>
@@ -2458,139 +2567,141 @@ function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onCle
 }
 
 // ===============================
-// CHECKOUT MODAL (PANTALLA CLIENTE RESUMEN + PAGO)
+// CHECKOUT MODAL (CORREGIDO)
 // ===============================
-
 function CheckoutModal({ r, cart, onClose, onSaleRegistered }) {
   const [nombre, setNombre] = useState("");
-  const [tipoServicio, setTipoServicio] = useState("recoger");
-  const [domicilio, setDomicilio] = useState("");
-  const [metodoPago, setMetodoPago] = useState("efectivo");
-  const [ubicacionExacta, setUbicacionExacta] = useState("");
   const [telefono, setTelefono] = useState("");
+  const [direccion, setDireccion] = useState("");
+  const [notas, setNotas] = useState("");
+  const [metodoPago, setMetodoPago] = useState("efectivo");
+  const [enviando, setEnviando] = useState(false);
+  const [geoStatus, setGeoStatus] = useState("");
+  const transferenciaBanco = r.transferenciaBanco || "";
+  const transferenciaCuenta = r.transferenciaCuenta || "";
+  const transferenciaClabe = r.transferenciaClabe || "";
+  const transferenciaTitular = r.transferenciaTitular || "";
 
-  if (!cart || cart.length === 0) {
-    return null;
-  }
 
-  const total = cart.reduce((s, i) => s + (i.total || 0), 0);
+  if (!cart || cart.length === 0) return null;
+  if (!r) return null;
+
+  const total = cart.reduce((acc, line) => {
+    const lineaTotal =
+      line.total != null
+        ? Number(line.total)
+        : (Number(line.precio) || 0) * (line.qty || 1);
+    return acc + (isNaN(lineaTotal) ? 0 : lineaTotal);
+  }, 0);
+
+  const restauranteNombre = r.nombre || "tu restaurante";
+  const whatsappDestino = (r.whatsapp || "").replace(/[^0-9]/g, "");
+
+  const construirMensajeWhatsApp = () => {
+    let msg = `*Nuevo pedido para ${restauranteNombre}*\n\n`;
+
+    msg += `*Detalles del pedido:*\n`;
+    cart.forEach((line, idx) => {
+      const lineaTotal =
+        line.total != null
+          ? Number(line.total)
+          : (Number(line.precio) || 0) * (line.qty || 1);
+      msg += `${idx + 1}. ${line.qty || 1}× ${line.nombre} - ${currency(
+        lineaTotal
+      )}\n`;
+
+      if (line.seleccionIngredientes && line.seleccionIngredientes.length > 0) {
+        msg += `   • Sin: ${line.seleccionIngredientes.join(", ")}\n\n`;
+      }
+
+      if (line.seleccionExtras && line.seleccionExtras.length > 0) {
+        msg += `   • Extras: ${line.seleccionExtras.join(", ")}\n`;
+      }
+    });
+
+    msg += `\n*Total:* ${currency(total)}\n\n`;
+
+    msg += `*Datos del cliente:*\n`;
+    if (nombre) msg += `• Nombre: ${nombre}\n`;
+    if (telefono) msg += `• Teléfono: ${telefono}\n`;
+    if (direccion) msg += `• Dirección/Ubicación: ${direccion}\n`;
+    msg += `• Método de pago: ${metodoPago}\n`;
+    if (notas) msg += `• Notas: ${notas}\n`;
+
+    msg += `\nEnviado desde el menú digital.`;
+
+    return msg;
+  };
+
+  const handleConfirmarWhatsApp = () => {
+    if (!whatsappDestino) {
+      alert(
+        "Este restaurante no tiene configurado un número de WhatsApp en Ajustes."
+      );
+      return;
+    }
+    if (enviando) return;
+    setEnviando(true);
+
+    try {
+      const mensaje = construirMensajeWhatsApp();
+      const encoded = encodeURIComponent(mensaje);
+      const url = `https://wa.me/${whatsappDestino}?text=${encoded}`;
+
+      // 👉 Abrimos WhatsApp
+      window.open(url, "_blank");
+
+      // 👉 Registramos la venta en reportes
+      if (typeof onSaleRegistered === "function") {
+        onSaleRegistered(cart, metodoPago);
+      }
+
+      onClose && onClose();
+    } catch (e) {
+      console.error("Error enviando por WhatsApp:", e);
+      alert("Hubo un problema al preparar el pedido para WhatsApp.");
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const handleSoloRegistrar = () => {
+    if (enviando) return;
+    setEnviando(true);
+    try {
+      if (typeof onSaleRegistered === "function") {
+        onSaleRegistered(cart, metodoPago);
+      }
+      alert("Venta registrada (sin enviar por WhatsApp).");
+      onClose && onClose();
+    } catch (e) {
+      console.error("Error registrando venta:", e);
+      alert("Hubo un problema al registrar la venta.");
+    } finally {
+      setEnviando(false);
+    }
+  };
 
   const handleUsarUbicacion = () => {
     if (!navigator.geolocation) {
-      alert("Tu dispositivo no permite obtener la ubicación automáticamente.");
+      setGeoStatus("Tu navegador no soporta geolocalización.");
       return;
     }
 
+    setGeoStatus("Obteniendo ubicación...");
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords;
-        const mapsUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
-
-        setDomicilio(mapsUrl);
-        setUbicacionExacta(mapsUrl);
-
-        alert("Tu ubicación se ha agregado al pedido como enlace de Maps.");
+        const txt = `Lat: ${latitude.toFixed(5)}, Lon: ${longitude.toFixed(5)}`;
+        setDireccion((prev) => (prev ? `${prev} | ${txt}` : txt));
+        setGeoStatus("Ubicación agregada.");
       },
       (err) => {
-        console.warn("Error al obtener ubicación:", err);
-        alert(
-          "No se pudo obtener tu ubicación. Por favor, escribe tu dirección manualmente."
-        );
-      }
+        console.error("Geo error:", err);
+        setGeoStatus("No se pudo obtener la ubicación.");
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
     );
-  };
-
-  const handleConfirmar = () => {
-    if (!nombre.trim()) {
-      alert("Escribe tu nombre para continuar.");
-      return;
-    }
-
-    if (!telefono.trim()) {
-      alert("Escribe tu número de WhatsApp para confirmar tu pedido.");
-      return;
-    }
-
-    if (tipoServicio === "domicilio" && !domicilio.trim()) {
-      alert("Escribe tu dirección o usa tu ubicación de Maps.");
-      return;
-    }
-
-    // 1) Armamos el detalle de los platillos, incluyendo SIN y EXTRAS
-    const itemsResumen = (cart || [])
-      .map((i) => {
-        let line = `${i.qty} x ${i.nombre} (${currency(i.total || 0)})`;
-
-        // Si el cliente QUITÓ ingredientes en la personalización
-        if (i.seleccionIngredientes && i.seleccionIngredientes.length > 0) {
-          line += `\n   • Sin: ${i.seleccionIngredientes.join(", ")}`;
-        }
-
-        if (i.seleccionExtras && i.seleccionExtras.length > 0) {
-          line += `\n   • Extra: ${i.seleccionExtras.join(", ")}`;
-        }
-
-        return line;
-      })
-      .join("\n");
-
-    // 2) Construimos el mensaje base que se mandará por WhatsApp
-    let msg = `Nuevo pedido para *${r.nombre || "tu restaurante"}*:\n\n`;
-    msg += `Cliente: ${nombre}\n`;
-    msg += `Teléfono: ${telefono}\n`;
-    msg += `Servicio: ${
-      tipoServicio === "domicilio" ? "A domicilio" : "En el lugar"
-    }\n`;
-    if (tipoServicio === "domicilio" && domicilio) {
-      msg += `Dirección / Ubicación: ${domicilio}\n`;
-    }
-
-    msg += `\nDetalle:\n${itemsResumen}\n\n`;
-    msg += `Total: *${currency(total)}*\n`;
-    msg += `Método de pago: ${metodoPago}\n`;
-
-    // 3) Si el cliente eligió TRANSFERENCIA, agregamos tus datos bancarios
-    if (metodoPago === "transferencia") {
-      const banco = r?.transferenciaBanco || "";
-      const cuenta = r?.transferenciaCuenta || "";
-      const clabe = r?.transferenciaClabe || "";
-      const titular = r?.transferenciaTitular || "";
-
-      const tieneDatos = banco || cuenta || clabe || titular;
-
-      if (tieneDatos) {
-        msg += `\nDatos para transferencia:\n`;
-        if (banco) {
-          msg += `• Banco / cuenta: ${banco}\n`;
-        }
-        if (cuenta) {
-          msg += `• Número de cuenta / tarjeta: ${cuenta}\n`;
-        }
-        if (clabe) {
-          msg += `• CLABE: ${clabe}\n`;
-        }
-        if (titular) {
-          msg += `• Titular: ${titular}\n`;
-        }
-      }
-    }
-
-    // 4) Número de WhatsApp del restaurante (desde Ajustes)
-    const phoneRaw = r?.whatsapp || "";
-    const phone = phoneRaw.replace(/\D/g, "");
-    const baseUrl = "https://wa.me/";
-
-    const url =
-      phone.length >= 8
-        ? `${baseUrl}${phone}?text=${encodeURIComponent(msg)}`
-        : `${baseUrl}?text=${encodeURIComponent(msg)}`;
-
-    // 5) Abrir WhatsApp con el mensaje prellenado
-    window.open(url, "_blank");
-
-    // 6) Registrar la venta en el sistema y cerrar el modal
-    onSaleRegistered(cart, metodoPago);
-    onClose();
   };
 
   return (
@@ -2598,217 +2709,436 @@ function CheckoutModal({ r, cart, onClose, onSaleRegistered }) {
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.6)",
+        background: "rgba(15,23,42,0.75)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         zIndex: 999,
+        padding: 12,
       }}
     >
-      <Card
+      <div
         style={{
-          maxWidth: 420,
-          width: "90%",
-          borderRadius: 16,
+          maxWidth: 520,
+          width: "100%",
+          borderRadius: 20,
           background:
-            "radial-gradient(circle at top, rgba(45,212,191,0.12), #020617)",
-          border: "1px solid rgba(148,163,184,0.4)",
+            "radial-gradient(circle at top, rgba(34,197,94,0.15), transparent 55%), #020617",
+          border: "1px solid rgba(148,163,184,0.6)",
+          boxShadow: "0 24px 80px rgba(15,23,42,0.9)",
           color: "#e5e7eb",
+          padding: 16,
         }}
       >
-        <h3
+        {/* Header */}
+        <div
           style={{
-            marginTop: 0,
-            marginBottom: 12,
-            fontSize: 18,
-            color: "#e5e7eb",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 10,
           }}
         >
-          Confirmar pedido
-        </h3>
-
-        {/* NOMBRE */}
-        <div style={{ marginBottom: 10 }}>
-          <Label>Tu nombre</Label>
-          <Input
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            placeholder="Ej: Juan Pérez"
-          />
-        </div>
-
-        {/* WHATSAPP */}
-        <div style={{ marginBottom: 10 }}>
-          <Label>Número de WhatsApp</Label>
-          <Input
-            value={telefono}
-            onChange={(e) => setTelefono(e.target.value)}
-            placeholder="Ej: 521234567890"
-          />
-        </div>
-
-        {/* TIPO DE SERVICIO */}
-        <div style={{ marginBottom: 10 }}>
-          <Label>Tipo de servicio</Label>
-          <select
-            value={tipoServicio}
-            onChange={(e) => setTipoServicio(e.target.value)}
+          <div>
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+              }}
+            >
+              Confirmar pedido
+            </div>
+            <div
+              style={{
+                fontSize: 11,
+                color: "#9ca3af",
+              }}
+            >
+              Revisa el resumen y completa los datos del cliente.
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
             style={{
-              width: "100%",
-              padding: 8,
-              borderRadius: 6,
-              border: "1px solid #4b5563",
-              backgroundColor: "#020617",
-              color: "#e5e7eb",
-              marginTop: 4,
+              border: "none",
+              background: "transparent",
+              color: "#9ca3af",
+              fontSize: 18,
+              cursor: "pointer",
             }}
           >
-            <option value="recoger">Recoger en el restaurante</option>
-            <option value="domicilio">Entrega a domicilio</option>
-          </select>
+            ×
+          </button>
         </div>
 
-        {/* DIRECCIÓN / MAPS CUANDO ES DOMICILIO */}
-        {tipoServicio === "domicilio" && (
-          <div style={{ marginBottom: 10 }}>
-            <Label>Dirección de entrega</Label>
-            <TextArea
-              value={domicilio}
-              onChange={(e) => setDomicilio(e.target.value)}
-              placeholder="Calle, número, colonia... o usa tu ubicación de Maps"
+        {/* Resumen del pedido */}
+        <div
+          style={{
+            borderRadius: 14,
+            border: "1px solid rgba(148,163,184,0.5)",
+            padding: 10,
+            marginBottom: 12,
+            maxHeight: 150,
+            overflowY: "auto",
+            background: "rgba(15,23,42,0.8)",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              marginBottom: 6,
+            }}
+          >
+            🧾 Resumen del pedido
+          </div>
+          {cart.map((line, idx) => {
+            const lineaTotal =
+              line.total != null
+                ? Number(line.total)
+                : (Number(line.precio) || 0) * (line.qty || 1);
+            return (
+              <div
+                key={idx}
+                style={{
+                  fontSize: 11,
+                  padding: "4px 0",
+                  borderBottom:
+                    idx < cart.length - 1
+                      ? "1px dashed rgba(55,65,81,0.7)"
+                      : "none",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginBottom: 2,
+                  }}
+                >
+                  <span>
+                    {line.qty || 1}× {line.nombre}
+                  </span>
+                  <span>{currency(lineaTotal)}</span>
+                </div>
+                {line.seleccionIngredientes &&
+                  line.seleccionIngredientes.length > 0 && (
+                    <div style={{ color: "#9ca3af" }}>
+                      <span style={{ fontSize: 10 }}>
+                        Sin: {line.seleccionIngredientes.join(", ")}
+                      </span>
+                    </div>
+                  )}
+                {line.seleccionExtras && line.seleccionExtras.length > 0 && (
+                  <div style={{ color: "#9ca3af" }}>
+                    <span style={{ fontSize: 10 }}>
+                      Extras: {line.seleccionExtras.join(", ")}
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          <div
+            style={{
+              marginTop: 6,
+              display: "flex",
+              justifyContent: "space-between",
+              fontSize: 12,
+              fontWeight: 700,
+              color: "#bbf7d0",
+            }}
+          >
+            <span>Total</span>
+            <span>{currency(total)}</span>
+          </div>
+        </div>
+
+        {/* Datos del cliente */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1.2fr 0.9fr",
+            gap: 8,
+            marginBottom: 8,
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 11, marginBottom: 3 }}>Nombre</div>
+            <input
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              placeholder="Ej: Juan Pérez"
               style={{
-                minHeight: 60,
+                width: "100%",
+                borderRadius: 999,
+                border: "1px solid #4b5563",
+                background: "#020617",
+                color: "#e5e7eb",
+                padding: "6px 10px",
+                fontSize: 12,
               }}
             />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, marginBottom: 3 }}>Teléfono</div>
+            <input
+              value={telefono}
+              onChange={(e) => setTelefono(e.target.value)}
+              placeholder="10 dígitos"
+              style={{
+                width: "100%",
+                borderRadius: 999,
+                border: "1px solid #4b5563",
+                background: "#020617",
+                color: "#e5e7eb",
+                padding: "6px 10px",
+                fontSize: 12,
+              }}
+            />
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 8 }}>
+          <div
+            style={{
+              fontSize: 11,
+              marginBottom: 3,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <span>Dirección / ubicación</span>
             <button
               type="button"
               onClick={handleUsarUbicacion}
               style={{
-                marginTop: 6,
-                fontSize: 12,
-                borderRadius: 999,
-                border: "1px dashed #4b5563",
-                padding: "4px 10px",
-                background: "#020617",
-                color: "#e5e7eb",
+                border: "none",
+                background: "transparent",
+                color: "#22c55e",
+                fontSize: 10,
                 cursor: "pointer",
+                textDecoration: "underline",
               }}
             >
-              📍 Usar mi ubicación (Maps)
+              Usar mi ubicación actual
             </button>
           </div>
-        )}
-
-        {/* MÉTODO DE PAGO */}
-        <div style={{ marginBottom: 10 }}>
-          <Label>Método de pago</Label>
-          <select
-            value={metodoPago}
-            onChange={(e) => setMetodoPago(e.target.value)}
+          <textarea
+            value={direccion}
+            onChange={(e) => setDireccion(e.target.value)}
+            placeholder="Calle, número, referencias…"
+            rows={2}
             style={{
               width: "100%",
-              padding: 8,
-              borderRadius: 6,
+              borderRadius: 12,
               border: "1px solid #4b5563",
-              backgroundColor: "#020617",
+              background: "#020617",
               color: "#e5e7eb",
-              marginTop: 4,
+              padding: "6px 10px",
+              fontSize: 12,
+              resize: "vertical",
             }}
-          >
-            <option value="efectivo">Efectivo</option>
-            <option value="tarjeta">Tarjeta / Link de pago</option>
-            <option value="transferencia">Transferencia</option>
-          </select>
+          />
+          {geoStatus && (
+            <div
+              style={{
+                fontSize: 10,
+                marginTop: 3,
+                color: "#9ca3af",
+              }}
+            >
+              {geoStatus}
+            </div>
+          )}
         </div>
 
-        {/* DATOS BANCARIOS SI ELIGE TRANSFERENCIA */}
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 11, marginBottom: 3 }}>Notas del pedido</div>
+          <textarea
+            value={notas}
+            onChange={(e) => setNotas(e.target.value)}
+            placeholder="Sin cebolla, entregar en portón negro, etc."
+            rows={2}
+            style={{
+              width: "100%",
+              borderRadius: 12,
+              border: "1px solid #4b5563",
+              background: "#020617",
+              color: "#e5e7eb",
+              padding: "6px 10px",
+              fontSize: 12,
+              resize: "vertical",
+            }}
+          />
+        </div>
+
+        {/* Método de pago */}
+        <div
+          style={{
+            marginBottom: 12,
+            fontSize: 11,
+          }}
+        >
+          <div style={{ marginBottom: 4 }}>Método de pago</div>
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 8,
+            }}
+          >
+            {[
+              { id: "efectivo", label: "Efectivo" },
+              { id: "transferencia", label: "Transferencia" },
+              { id: "tarjeta", label: "Tarjeta" },
+            ].map((m) => {
+              const active = metodoPago === m.id;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setMetodoPago(m.id)}
+                  style={{
+                    borderRadius: 999,
+                    padding: "4px 10px",
+                    border: "1px solid",
+                    borderColor: active
+                      ? "rgba(74,222,128,0.9)"
+                      : "rgba(75,85,99,0.9)",
+                    background: active
+                      ? "linear-gradient(135deg,#22c55e,#4ade80)"
+                      : "transparent",
+                    color: active ? "#022c22" : "#e5e7eb",
+                    fontSize: 11,
+                    cursor: "pointer",
+                  }}
+                >
+                  {m.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
         {metodoPago === "transferencia" && (
           <div
             style={{
-              marginBottom: 10,
-              padding: 8,
-              borderRadius: 10,
+              marginBottom: 12,
+              padding: "8px 10px",
+              borderRadius: 12,
               border: "1px dashed #4b5563",
               background: "#020617",
+              fontSize: 11,
               color: "#e5e7eb",
-              fontSize: 12,
-              lineHeight: 1.5,
             }}
           >
-            <div style={{ fontWeight: 600, marginBottom: 4 }}>
-              Datos para transferencia bancaria
+            <div
+              style={{
+                fontWeight: 600,
+                marginBottom: 4,
+              }}
+            >
+              Datos para transferencia
             </div>
-            {r.transferenciaBanco && (
-              <div>🏦 Banco: {r.transferenciaBanco}</div>
+
+            {!transferenciaBanco &&
+            !transferenciaCuenta &&
+            !transferenciaClabe &&
+            !transferenciaTitular ? (
+              <div style={{ color: "#9ca3af" }}>
+                Aún no has configurado los datos de transferencia en Ajustes.
+              </div>
+            ) : (
+              <ul
+                style={{
+                  margin: 0,
+                  paddingLeft: 14,
+                  listStyleType: "disc",
+                }}
+              >
+                {transferenciaBanco && (
+                  <li>Banco / tipo de cuenta: {transferenciaBanco}</li>
+                )}
+                {transferenciaCuenta && (
+                  <li>Número de cuenta / tarjeta: {transferenciaCuenta}</li>
+                )}
+                {transferenciaClabe && <li>CLABE: {transferenciaClabe}</li>}
+                {transferenciaTitular && (
+                  <li>Titular de la cuenta: {transferenciaTitular}</li>
+                )}
+              </ul>
             )}
-            {r.transferenciaCuenta && (
-              <div>💳 Cuenta / tarjeta: {r.transferenciaCuenta}</div>
-            )}
-            {r.transferenciaClabe && (
-              <div>🔢 CLABE: {r.transferenciaClabe}</div>
-            )}
-            {r.transferenciaTitular && (
-              <div>👤 Titular: {r.transferenciaTitular}</div>
-            )}
-            <div style={{ marginTop: 6, fontSize: 11, color: "#9ca3af" }}>
-              Realiza tu transferencia con estos datos y envía tu comprobante
-              por WhatsApp junto con tu nombre.
-            </div>
           </div>
         )}
 
-        {/* RESUMEN TOTAL */}
-        <div
-          style={{
-            marginTop: 8,
-            marginBottom: 12,
-            fontSize: 14,
-            display: "flex",
-            justifyContent: "space-between",
-          }}
-        >
-          <span>Total a pagar:</span>
-          <strong>${total}</strong>
-        </div>
 
+        {/* Botones finales */}
         <div
           style={{
             display: "flex",
             flexDirection: "column",
-            gap: 8,
-            marginTop: 8,
+            gap: 6,
           }}
         >
           <button
             type="button"
-            onClick={handleConfirmar}
+            onClick={handleConfirmarWhatsApp}
+            disabled={enviando}
             style={{
               ...BTN,
               width: "100%",
-              background:
-                "linear-gradient(90deg, #22c55e, #4ade80, #22c55e)",
-              borderColor: "rgba(34,197,94,0.7)",
+              fontSize: 12,
+              padding: "8px 10px",
+              background: "linear-gradient(90deg,#22c55e,#4ade80)",
               color: "#022c22",
+              borderColor: "rgba(74,222,128,0.8)",
+              opacity: enviando ? 0.7 : 1,
+              cursor: enviando ? "wait" : "pointer",
             }}
           >
-            Confirmar pedido
+            📲 Confirmar y enviar por WhatsApp
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSoloRegistrar}
+            disabled={enviando}
+            style={{
+              ...BTN_OUTLINE,
+              width: "100%",
+              fontSize: 11,
+              padding: "7px 10px",
+              background: "transparent",
+              color: "#e5e7eb",
+              borderColor: "rgba(148,163,184,0.8)",
+              opacity: enviando ? 0.7 : 1,
+              cursor: enviando ? "wait" : "pointer",
+            }}
+          >
+            💾 Registrar venta sin WhatsApp
           </button>
 
           <button
             type="button"
             onClick={onClose}
+            disabled={enviando}
             style={{
-              ...BTN,
+              ...BTN_OUTLINE,
               width: "100%",
+              fontSize: 11,
+              padding: "6px 10px",
               background: "transparent",
-              borderColor: "#4b5563",
-              color: "#e5e7eb",
+              color: "#9ca3af",
+              borderColor: "rgba(75,85,99,0.9)",
             }}
           >
             Cancelar
           </button>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }
@@ -4212,12 +4542,27 @@ function App() {
             r={rPublic}
             cart={checkoutCart}
             onClose={handleCloseCheckout}
-            onSaleRegistered={handleSaleRegistered}
+            onSaleRegistered={(items, metodoPago) => {
+              try {
+                if (!rPublic) return;
+                // 🔹 Aquí sí registramos la venta en el restaurante correcto
+                store.closeSale(rPublic.id, items, metodoPago);
+              } catch (e) {
+                console.error(
+                  "Error registrando venta (vista cliente pública):",
+                  e
+                );
+              } finally {
+                setCart([]);
+                setCheckoutCart(null);
+              }
+            }}
           />
         )}
       </>
     );
   }
+
 
   // ======================
   // MODO ADMIN / PANEL COMPLETO
