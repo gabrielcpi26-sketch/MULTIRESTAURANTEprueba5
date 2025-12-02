@@ -532,7 +532,8 @@ useEffect(() => {
 
   // Guardar respaldo en localStorage ante cualquier cambio
   useEffect(() => {
- if (typeof window === "undefined") return;
+    if (typeof window === "undefined") return;
+
     try {
       window.localStorage.setItem(
         STORAGE_RESTAURANTES,
