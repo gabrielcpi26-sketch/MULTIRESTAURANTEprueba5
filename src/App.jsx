@@ -532,7 +532,18 @@ useEffect(() => {
 
   // Guardar respaldo en localStorage ante cualquier cambio
   useEffect(() => {
- // Canal Realtime para INSERTs en la tabla "ventas"
+ if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        STORAGE_RESTAURANTES,
+        JSON.stringify(restaurantes)
+      );
+    } catch (e) {
+      console.warn("No se pudo guardar restaurantes:", e);
+    }
+  }, [restaurantes]);
+ 
+// Canal Realtime para INSERTs en la tabla "ventas"
   const channel = supabase
     .channel("ventas-realtime")
     .on(
@@ -578,17 +589,7 @@ useEffect(() => {
     supabase.removeChannel(channel);
   };
 }, []);
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(
-        STORAGE_RESTAURANTES,
-        JSON.stringify(restaurantes)
-      );
-    } catch (e) {
-      console.warn("No se pudo guardar restaurantes:", e);
-    }
-  }, [restaurantes]);
-
+   
   // ======================
   // ACCIONES SOBRE RESTAURANTES
   // ======================
