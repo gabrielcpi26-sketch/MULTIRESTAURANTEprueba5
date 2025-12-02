@@ -530,21 +530,22 @@ useEffect(() => {
   load();
 }, []);
 
-  // Guardar respaldo en localStorage ante cualquier cambio
-  useEffect(() => {
-    if (typeof window === "undefined") return;
+ // Guardar respaldo en localStorage ante cualquier cambio 
+useEffect(() => {
+  if (typeof window === "undefined") return;
 
-    try {
-      window.localStorage.setItem(
-        STORAGE_RESTAURANTES,
-        JSON.stringify(restaurantes)
-      );
-    } catch (e) {
-      console.warn("No se pudo guardar restaurantes:", e);
-    }
-  }, [restaurantes]);
- 
+  try {
+    window.localStorage.setItem(
+      STORAGE_RESTAURANTES,
+      JSON.stringify(restaurantes)
+    );
+  } catch (e) {
+    console.warn("No se pudo guardar restaurantes:", e);
+  }
+}, [restaurantes]);
+
 // Canal Realtime para INSERTs en la tabla "ventas"
+useEffect(() => {
   const channel = supabase
     .channel("ventas-realtime")
     .on(
@@ -569,7 +570,6 @@ useEffect(() => {
               estadoPago: row.estado_pago || "pendiente",
             };
 
-            // Evitar duplicados si por alguna razón ya existe
             const yaExiste = (rr.ventas || []).some(
               (v) => v.id === nuevaVenta.id
             );
