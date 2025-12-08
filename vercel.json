@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/",
+      "destination": "/?view=cliente&rest=demo-rest"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
