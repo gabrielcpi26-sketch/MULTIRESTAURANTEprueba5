@@ -14,9 +14,7 @@ import Grid from "./ui/Grid";
 // =============================================
 
 function PublicMenu({ r, cart, onStartOrder, onOpenCheckout, onRemoveItem, onClearCart }) {
-  if (!r) {
-    return <p style={{ padding: 20 }}>No hay restaurante seleccionado.</p>;
-  }
+if (!r) return null;
 
   return (
     <div>

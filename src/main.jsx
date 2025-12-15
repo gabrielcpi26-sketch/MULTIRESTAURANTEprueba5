@@ -1,9 +1,22 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App.jsx"; // <- importa el App que ya tienes
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-ReactDOM.createRoot(document.getElementById("root")).render(
+import App from "./App.jsx";
+import LandingPro from "./LandingPro.jsx";
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+
+root.render(
   <React.StrictMode>
-    <App /> 
+    <BrowserRouter>
+      <Routes>
+        {/* Ruta principal normal */}
+        <Route path="/*" element={<App />} />
+
+        {/* Ruta para la landing */}
+        <Route path="/demo" element={<LandingPro />} />
+      </Routes>
+    </BrowserRouter>
   </React.StrictMode>
 );

@@ -4625,21 +4625,27 @@ function App() {
             <MenuEditor r={currentRestaurant} store={store} />
           )}
 
-          {tab === "public" && (
-            <>
-              <Container>
-                <Card>
-                  <p
-                    style={{
-                      marginTop: 0,
-                      marginBottom: 8,
-                      fontSize: 12,
-                      color: "#6b7280",
-                    }}
-                  >
-                    Así verá el cliente tu menú cuando compartas el link desde
-                    Ajustes.
-                  </p>
+       {tab === "public" && (
+  <>
+    <Container>
+      <Card
+        style={{
+          background: "transparent",
+          boxShadow: "none",
+          padding: 0,
+          margin: 0,
+        }}
+      >
+        <p
+          style={{
+            marginTop: 0,
+            marginBottom: 8,
+            fontSize: 12,
+            color: "#6b7280",
+          }}
+        >
+          Así verá el cliente tu menú cuando compartas el link desde Ajustes.
+        </p>
                   <PublicMenu
                     r={currentRestaurant}
                     cart={cart}
