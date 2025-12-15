@@ -4519,80 +4519,70 @@ function App() {
     );
   }
 
-  // ======================
-  // MODO SOLO CLIENTE (link público real)
-  // ======================
-  if (isPublicClient) {
-    if (!rPublic) {
-      return (
-        <>
-          <HeaderBar titulo="Menú del restaurante" />
-          <Container>
-            <Card>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 13,
-                  color: "#9ca3af",
-                }}
-              >
-                No se encontró información del restaurante.
-              </p>
-            </Card>
-          </Container>
-        </>
-      );
-    }
+ // ======================
+// MODO SOLO CLIENTE (link público real)
+// ======================
+if (isPublicClient) {
+  // ⛔ Mientras carga el restaurante, no mostramos nada (evita el flash)
+  if (!rPublic) return null;
 
-    return (
-      <>
-        <HeaderBar titulo={rPublic.nombre || "Menú del restaurante"} />
-        <Container>
-          <Card>
-            <PublicMenu
-              r={rPublic}
-              cart={cart}
-              onStartOrder={handleStartOrder}
-              onOpenCheckout={handleOpenCheckout}
-              onRemoveItem={handleRemoveCartItem}
-              onClearCart={handleClearCart}
-            />
-          </Card>
-        </Container>
+  return (
+    <>
+      <HeaderBar titulo={rPublic.nombre || "Menú del restaurante"} />
 
-        {customItem && (
-          <CustomizeModal
-            item={customItem}
-            onClose={() => setCustomItem(null)}
-            onAdd={handleAddFromModal}
-          />
-        )}
-
-        {checkoutCart && (
-          <CheckoutModal
+      <Container>
+        <Card
+          style={{
+            background: "transparent",
+            boxShadow: "none",
+            padding: 0,
+            margin: 0,
+          }}
+        >
+          <PublicMenu
             r={rPublic}
-            cart={checkoutCart}
-            onClose={handleCloseCheckout}
-            onSaleRegistered={(items, metodoPago) => {
-              try {
-                if (!rPublic) return;
-                // 🔹 Aquí sí registramos la venta en el restaurante correcto
-                store.closeSale(rPublic.id, items, metodoPago);
-              } catch (e) {
-                console.error(
-                  "Error registrando venta (vista cliente pública):",
-                  e
-                );
-              } finally {
-                setCart([]);
-                setCheckoutCart(null);
-              }
-            }}
+            cart={cart}
+            onStartOrder={handleStartOrder}
+            onOpenCheckout={handleOpenCheckout}
+            onRemoveItem={handleRemoveCartItem}
+            onClearCart={handleClearCart}
           />
-        )}
-      </>
-    );
-  }
+        </Card>
+      </Container>
+
+      {customItem && (
+        <CustomizeModal
+          item={customItem}
+          onClose={() => setCustomItem(null)}
+          onAdd={handleAddFromModal}
+        />
+      )}
+
+      {checkoutCart && (
+        <CheckoutModal
+          r={rPublic}
+          cart={checkoutCart}
+          onClose={handleCloseCheckout}
+          onSaleRegistered={(items, metodoPago) => {
+            try {
+              if (!rPublic) return;
+              store.closeSale(rPublic.id, items, metodoPago);
+            } catch (e) {
+              console.error(
+                "Error registrando venta (vista cliente pública):",
+                e
+              );
+            } finally {
+              setCart([]);
+              setCheckoutCart(null);
+            }
+          }}
+        />
+      )}
+    </>
+  );
+}
+
 
 
   // ======================
